@@ -212,10 +212,10 @@ export async function getEvents() {
   return data
 }
 
-export async function createEvent({ name, type, description, photo_url }) {
+export async function createEvent({ name, type, description, photo_url, date }) {
   const { data, error } = await supabase
     .from('events')
-    .insert({ name, type, description: description || null, photo_url: photo_url || null, status: 'ongoing', participants: [], standings: [] })
+    .insert({ name, type, description: description || null, photo_url: photo_url || null, date: date || null, status: 'ongoing', participants: [], standings: [] })
     .select()
     .single()
   if (error) throw error
@@ -227,6 +227,14 @@ export async function updateEventParticipants(eventId, participants) {
     .from('events')
     .update({ participants })
     .eq('id', eventId)
+  if (error) throw error
+}
+
+export async function updateEvent(id, { name, type, description, date }) {
+  const { error } = await supabase
+    .from('events')
+    .update({ name, type, description: description || null, date: date || null })
+    .eq('id', id)
   if (error) throw error
 }
 
@@ -268,15 +276,16 @@ export async function closeEvent(event, players) {
     .filter(id => players.find(p => p.id === id))
     .sort((a, b) => (stats[b]?.wins || 0) - (stats[a]?.wins || 0))
 
-  // Distribue les points (égalités = partage)
+  // Distribue les points uniquement aux 3 premiers
   const points = EVENT_POINTS[event.type] || [25, 15, 10]
   const updates = []
   let i = 0
-  while (i < ranked.length) {
+  while (i < Math.min(ranked.length, 3)) {
     const currentWins = stats[ranked[i]]?.wins || 0
-    const tied = ranked.filter(id => (stats[id]?.wins || 0) === currentWins)
-    const startIdx = ranked.indexOf(tied[0])
-    const endIdx = startIdx + tied.length - 1
+    // Trouve tous les joueurs à égalité à cette position
+    const tied = ranked.filter((id, idx) => idx >= i && idx < 3 && (stats[id]?.wins || 0) === currentWins)
+    const startIdx = i
+    const endIdx = Math.min(startIdx + tied.length - 1, 2)
     const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
     const sharedPts = Math.round(totalPts / tied.length)
 
