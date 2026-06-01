@@ -222,36 +222,105 @@ export default function Match() {
   const allIds = [...teamA, ...teamB].filter(Boolean)
   const exclude = (team, idx) => [...team.filter((_, j) => j !== idx), ...(team === teamA ? teamB : teamA)].filter(Boolean)
 
+  // 🔒 Easter egg secret — Les Avengers
+  const AVENGERS = ['juliette', 'jeremy', 'emilien']
+  const normalize = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  const isAvengersTeam = (teamIds) => {
+    if (teamIds.filter(Boolean).length < 3) return false
+    const firstNames = teamIds.map(id => normalize(players.find(pl => pl.id === id)?.first_name))
+    return AVENGERS.every(a => firstNames.includes(a))
+  }
+  const avengersA = isAvengersTeam(teamA)
+  const avengersB = isAvengersTeam(teamB)
+  const avengerCardStyle = {
+    position: 'relative', overflow: 'hidden',
+    border: '2px solid transparent',
+    backgroundImage: 'linear-gradient(white,white), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080)',
+    backgroundOrigin: 'border-box',
+    backgroundClip: 'padding-box, border-box',
+  }
+
   return (
     <main className="page">
+      <style>{`
+        @keyframes avengerGlow {
+          0%   { box-shadow: 0 0 20px 4px rgba(255,0,128,0.5), 0 0 40px rgba(168,85,247,0.2); }
+          25%  { box-shadow: 0 0 20px 4px rgba(0,191,255,0.5), 0 0 40px rgba(255,224,0,0.2); }
+          50%  { box-shadow: 0 0 24px 6px rgba(168,85,247,0.6), 0 0 48px rgba(64,224,208,0.3); }
+          75%  { box-shadow: 0 0 20px 4px rgba(64,224,208,0.5), 0 0 40px rgba(255,0,128,0.2); }
+          100% { box-shadow: 0 0 20px 4px rgba(255,0,128,0.5), 0 0 40px rgba(168,85,247,0.2); }
+        }
+        @keyframes waveShimmer {
+          0%   { transform: translateX(-100%) skewX(-20deg); opacity: 0; }
+          20%  { opacity: 1; }
+          80%  { opacity: 1; }
+          100% { transform: translateX(300%) skewX(-20deg); opacity: 0; }
+        }
+        .avengers-card {
+          position: relative; overflow: hidden;
+          border: 2.5px solid transparent !important;
+          background-image: linear-gradient(white, white), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
+          background-origin: border-box !important;
+          background-clip: padding-box, border-box !important;
+          animation: avengerGlow 2s ease-in-out infinite;
+        }
+        .avengers-card::after {
+          content: '';
+          position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+          background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%);
+          animation: waveShimmer 2.4s ease-in-out infinite;
+          pointer-events: none; z-index: 1;
+        }
+        .avengers-watermark {
+          position: absolute; top: 50%; left: 50%;
+          transform: translate(-50%, -50%) rotate(-15deg);
+          font-family: 'Barlow Condensed', sans-serif;
+          font-weight: 900; font-size: 64px; letter-spacing: 4px;
+          background: linear-gradient(135deg, rgba(100,180,255,0.15), rgba(168,85,247,0.2), rgba(255,200,0,0.12));
+          -webkit-background-clip: text; background-clip: text; color: transparent;
+          pointer-events: none; user-select: none; white-space: nowrap; z-index: 0;
+        }
+        .avengers-inner { position: relative; z-index: 2; }
+      `}</style>
+
       <div className="page-title">Nouveau match</div>
 
       {/* Teams — layout 3 colonnes égales */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 12, marginBottom: 24, alignItems: 'start' }}>
 
         {/* Équipe A */}
-        <div className="card" style={{ borderTop: '3px solid #2E6CC7' }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Équipe A</div>
-          {[0, 1, 2].map(i => (
-            <PlayerSelect key={i} value={teamA[i]} onChange={v => setA(i, v)}
-              players={players} allPlayers={players}
-              exclude={exclude(teamA, i)} label={`Joueur ${i + 1}`} />
-          ))}
+        <div className={avengersA ? 'card avengers-card' : 'card'} style={!avengersA ? { borderTop: '3px solid #2E6CC7' } : {}}>
+          {avengersA && <div className="avengers-watermark">AVENGERS</div>}
+          <div className={avengersA ? 'avengers-inner' : ''}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: avengersA ? '#7C3AED' : '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>
+              {avengersA ? '⚡ Équipe A ⚡' : 'Équipe A'}
+            </div>
+            {[0, 1, 2].map(i => (
+              <PlayerSelect key={i} value={teamA[i]} onChange={v => setA(i, v)}
+                players={players} allPlayers={players}
+                exclude={exclude(teamA, i)} label={`Joueur ${i + 1}`} />
+            ))}
+          </div>
         </div>
 
         {/* VS au milieu */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: 40 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#7A94B8', writingMode: 'horizontal-tb' }}>VS</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#7A94B8' }}>VS</div>
         </div>
 
         {/* Équipe B */}
-        <div className="card" style={{ borderTop: '3px solid #C87941' }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#C87941', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Équipe B</div>
-          {[0, 1, 2].map(i => (
-            <PlayerSelect key={i} value={teamB[i]} onChange={v => setB(i, v)}
-              players={players} allPlayers={players}
-              exclude={exclude(teamB, i)} label={`Joueur ${i + 1}`} />
-          ))}
+        <div className={avengersB ? 'card avengers-card' : 'card'} style={!avengersB ? { borderTop: '3px solid #C87941' } : {}}>
+          {avengersB && <div className="avengers-watermark">AVENGERS</div>}
+          <div className={avengersB ? 'avengers-inner' : ''}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: avengersB ? '#7C3AED' : '#C87941', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>
+              {avengersB ? '⚡ Équipe B ⚡' : 'Équipe B'}
+            </div>
+            {[0, 1, 2].map(i => (
+              <PlayerSelect key={i} value={teamB[i]} onChange={v => setB(i, v)}
+                players={players} allPlayers={players}
+                exclude={exclude(teamB, i)} label={`Joueur ${i + 1}`} />
+            ))}
+          </div>
         </div>
       </div>
 
