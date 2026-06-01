@@ -244,11 +244,18 @@ export default function Match() {
     <main className="page">
       <style>{`
         @keyframes avengerGlow {
-          0%   { box-shadow: 0 0 20px 4px rgba(255,0,128,0.5), 0 0 40px rgba(168,85,247,0.2); }
-          25%  { box-shadow: 0 0 20px 4px rgba(0,191,255,0.5), 0 0 40px rgba(255,224,0,0.2); }
-          50%  { box-shadow: 0 0 24px 6px rgba(168,85,247,0.6), 0 0 48px rgba(64,224,208,0.3); }
-          75%  { box-shadow: 0 0 20px 4px rgba(64,224,208,0.5), 0 0 40px rgba(255,0,128,0.2); }
-          100% { box-shadow: 0 0 20px 4px rgba(255,0,128,0.5), 0 0 40px rgba(168,85,247,0.2); }
+          0%   { box-shadow: 0 0 24px 6px rgba(255,0,128,0.6), 0 0 48px rgba(168,85,247,0.3); }
+          25%  { box-shadow: 0 0 24px 6px rgba(0,191,255,0.6), 0 0 48px rgba(255,224,0,0.3); }
+          50%  { box-shadow: 0 0 30px 8px rgba(168,85,247,0.7), 0 0 60px rgba(64,224,208,0.4); }
+          75%  { box-shadow: 0 0 24px 6px rgba(64,224,208,0.6), 0 0 48px rgba(255,0,128,0.3); }
+          100% { box-shadow: 0 0 24px 6px rgba(255,0,128,0.6), 0 0 48px rgba(168,85,247,0.3); }
+        }
+        @keyframes bgPulse {
+          0%   { background-color: rgba(30,80,200,0.07); }
+          25%  { background-color: rgba(168,85,247,0.09); }
+          50%  { background-color: rgba(0,191,255,0.1); }
+          75%  { background-color: rgba(64,224,208,0.08); }
+          100% { background-color: rgba(30,80,200,0.07); }
         }
         @keyframes waveShimmer {
           0%   { transform: translateX(-100%) skewX(-20deg); opacity: 0; }
@@ -259,15 +266,15 @@ export default function Match() {
         .avengers-card {
           position: relative; overflow: hidden;
           border: 2.5px solid transparent !important;
-          background-image: linear-gradient(white, white), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
+          background-image: linear-gradient(rgba(30,80,200,0.07), rgba(30,80,200,0.07)), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
           background-origin: border-box !important;
           background-clip: padding-box, border-box !important;
-          animation: avengerGlow 2s ease-in-out infinite;
+          animation: avengerGlow 2s ease-in-out infinite, bgPulse 2s ease-in-out infinite;
         }
         .avengers-card::after {
           content: '';
           position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-          background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%);
+          background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.6) 50%, transparent 65%);
           animation: waveShimmer 2.4s ease-in-out infinite;
           pointer-events: none; z-index: 1;
         }
@@ -276,7 +283,7 @@ export default function Match() {
           transform: translate(-50%, -50%) rotate(-15deg);
           font-family: 'Barlow Condensed', sans-serif;
           font-weight: 900; font-size: 64px; letter-spacing: 4px;
-          background: linear-gradient(135deg, rgba(100,180,255,0.15), rgba(168,85,247,0.2), rgba(255,200,0,0.12));
+          background: linear-gradient(135deg, rgba(100,180,255,0.25), rgba(168,85,247,0.3), rgba(255,200,0,0.2));
           -webkit-background-clip: text; background-clip: text; color: transparent;
           pointer-events: none; user-select: none; white-space: nowrap; z-index: 0;
         }
@@ -292,8 +299,8 @@ export default function Match() {
         <div className={avengersA ? 'card avengers-card' : 'card'} style={!avengersA ? { borderTop: '3px solid #2E6CC7' } : {}}>
           {avengersA && <div className="avengers-watermark">AVENGERS</div>}
           <div className={avengersA ? 'avengers-inner' : ''}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: avengersA ? '#7C3AED' : '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>
-              {avengersA ? '⚡ Équipe A ⚡' : 'Équipe A'}
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: avengersA ? 28 : 20, color: avengersA ? '#7C3AED' : '#2E6CC7', textTransform: 'uppercase', letterSpacing: avengersA ? 3 : 1, textAlign: 'center', marginBottom: 14, background: avengersA ? 'linear-gradient(90deg,#ff0080,#a855f7,#00bfff)' : 'none', WebkitBackgroundClip: avengersA ? 'text' : 'unset', WebkitTextFillColor: avengersA ? 'transparent' : 'unset' }}>
+              {avengersA ? 'AVENGERS' : 'Équipe A'}
             </div>
             {[0, 1, 2].map(i => (
               <PlayerSelect key={i} value={teamA[i]} onChange={v => setA(i, v)}
@@ -312,8 +319,8 @@ export default function Match() {
         <div className={avengersB ? 'card avengers-card' : 'card'} style={!avengersB ? { borderTop: '3px solid #C87941' } : {}}>
           {avengersB && <div className="avengers-watermark">AVENGERS</div>}
           <div className={avengersB ? 'avengers-inner' : ''}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: avengersB ? '#7C3AED' : '#C87941', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>
-              {avengersB ? '⚡ Équipe B ⚡' : 'Équipe B'}
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: avengersB ? 28 : 20, color: avengersB ? '#7C3AED' : '#C87941', textTransform: 'uppercase', letterSpacing: avengersB ? 3 : 1, textAlign: 'center', marginBottom: 14, background: avengersB ? 'linear-gradient(90deg,#ff0080,#a855f7,#00bfff)' : 'none', WebkitBackgroundClip: avengersB ? 'text' : 'unset', WebkitTextFillColor: avengersB ? 'transparent' : 'unset' }}>
+              {avengersB ? 'AVENGERS' : 'Équipe B'}
             </div>
             {[0, 1, 2].map(i => (
               <PlayerSelect key={i} value={teamB[i]} onChange={v => setB(i, v)}
