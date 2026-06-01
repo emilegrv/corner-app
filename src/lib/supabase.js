@@ -63,7 +63,6 @@ export async function getMatches() {
 }
 
 export async function deleteLastMatch(players) {
-  // Récupère le dernier match
   const { data: matches, error: fetchErr } = await supabase
     .from('matches')
     .select('*')
@@ -73,8 +72,6 @@ export async function deleteLastMatch(players) {
   if (!matches || matches.length === 0) throw new Error('Aucun match à supprimer')
 
   const match = matches[0]
-
-  // Inverse les deltas pour rétablir les ELO
   const updates = []
   if (!match.has_guest) {
     for (const id of (match.team_a || [])) {
@@ -99,11 +96,8 @@ export async function deleteLastMatch(players) {
     }
     await Promise.all(updates)
   }
-
-  // Supprime le match
   const { error: delErr } = await supabase.from('matches').delete().eq('id', match.id)
   if (delErr) throw delErr
-
   return match
 }
 
@@ -120,9 +114,8 @@ const K = 40
 const BEER_BONUS = 10
 
 export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players }) {
-  // Si un invité est dans l'une des équipes, aucun ELO ne bouge
   const allIds = [...teamA, ...teamB]
-  const hasGuest = allIds.some(id => players.find(p => p.id === id)?.is_guest)
+  const hasGuest = allIds.some(id => players.find(p => p.id === id)?.is_guest) || allIds.includes('__guest__')
 
   let deltaA = 0
   let deltaB = 0
@@ -152,6 +145,7 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
     const updates = []
     for (const id of teamA) {
       const p = players.find(p => p.id === id)
+      if (!p) continue
       updates.push(supabase.from('players').update({
         elo: p.elo + deltaA,
         wins: winnerTeam === 'A' ? p.wins + 1 : p.wins,
@@ -160,6 +154,7 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
     }
     for (const id of teamB) {
       const p = players.find(p => p.id === id)
+      if (!p) continue
       updates.push(supabase.from('players').update({
         elo: p.elo + deltaB,
         wins: winnerTeam === 'B' ? p.wins + 1 : p.wins,
@@ -253,13 +248,11 @@ export async function uploadEventPhoto(eventId, file) {
 }
 
 export async function deleteEvent(event, players) {
-  // Si l'évènement était clôturé, on retire les points distribués
   if (event.status === 'closed' && event.standings && event.standings.length > 0) {
     const points = EVENT_POINTS[event.type] || [25, 15, 10]
     const updates = []
     let i = 0
     const standings = event.standings
-
     while (i < Math.min(standings.length, 3)) {
       const currentWins = standings[i]?.wins || 0
       const tied = standings.filter((s, idx) => idx >= i && idx < 3 && (s?.wins || 0) === currentWins)
@@ -267,7 +260,6 @@ export async function deleteEvent(event, players) {
       const endIdx = Math.min(startIdx + tied.length - 1, 2)
       const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
       const sharedPts = Math.round(totalPts / tied.length)
-
       tied.forEach(s => {
         const p = players.find(pl => pl.id === s.id)
         if (p && sharedPts > 0) {
@@ -278,18 +270,16 @@ export async function deleteEvent(event, players) {
     }
     await Promise.all(updates)
   }
-
-  // Supprime l'évènement
   const { error } = await supabase.from('events').delete().eq('id', event.id)
   if (error) throw error
 }
-  // Calcule le classement interne basé sur V/D dans cet évènement
+
+export async function closeEvent(event, players) {
   const { data: matches } = await supabase
     .from('matches')
     .select('*')
     .eq('event_id', event.id)
 
-  // Compte V/D par joueur
   const stats = {}
   const participants = event.participants || []
   participants.forEach(id => { stats[id] = { wins: 0, losses: 0 } })
@@ -301,24 +291,20 @@ export async function deleteEvent(event, players) {
     ;(losers || []).forEach(id => { if (stats[id]) stats[id].losses++ })
   })
 
-  // Trie par victoires desc
   const ranked = participants
     .filter(id => players.find(p => p.id === id))
     .sort((a, b) => (stats[b]?.wins || 0) - (stats[a]?.wins || 0))
 
-  // Distribue les points uniquement aux 3 premiers
   const points = EVENT_POINTS[event.type] || [25, 15, 10]
   const updates = []
   let i = 0
   while (i < Math.min(ranked.length, 3)) {
     const currentWins = stats[ranked[i]]?.wins || 0
-    // Trouve tous les joueurs à égalité à cette position
     const tied = ranked.filter((id, idx) => idx >= i && idx < 3 && (stats[id]?.wins || 0) === currentWins)
     const startIdx = i
     const endIdx = Math.min(startIdx + tied.length - 1, 2)
     const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
     const sharedPts = Math.round(totalPts / tied.length)
-
     tied.forEach(id => {
       const p = players.find(pl => pl.id === id)
       if (p && sharedPts > 0) {
@@ -327,13 +313,10 @@ export async function deleteEvent(event, players) {
     })
     i += tied.length
   }
-
   await Promise.all(updates)
 
-  // Archive l'évènement
   const standings = ranked.map((id, idx) => ({
-    id,
-    rank: idx + 1,
+    id, rank: idx + 1,
     wins: stats[id]?.wins || 0,
     losses: stats[id]?.losses || 0,
   }))
