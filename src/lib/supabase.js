@@ -191,3 +191,114 @@ export async function archiveSeason(year, players) {
   )
   await Promise.all(resets)
 }
+
+// ── Events ────────────────────────────────────────────────
+
+const EVENT_POINTS = {
+  'ACP 250':  [25, 15, 10],
+  'ACP 500':  [45, 35, 30],
+  'ACP 1000': [65, 55, 50],
+  'WST':      [100, 75, 50],
+}
+
+export { EVENT_POINTS }
+
+export async function getEvents() {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function createEvent({ name, type, description, photo_url }) {
+  const { data, error } = await supabase
+    .from('events')
+    .insert({ name, type, description: description || null, photo_url: photo_url || null, status: 'ongoing', participants: [], standings: [] })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateEventParticipants(eventId, participants) {
+  const { error } = await supabase
+    .from('events')
+    .update({ participants })
+    .eq('id', eventId)
+  if (error) throw error
+}
+
+export async function uploadEventPhoto(eventId, file) {
+  const ext = file.name.split('.').pop()
+  const path = `event-${eventId}.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from('player-photos')
+    .upload(path, file, { upsert: true })
+  if (upErr) throw upErr
+  const { data } = supabase.storage.from('player-photos').getPublicUrl(path)
+  const photoUrl = data.publicUrl + '?t=' + Date.now()
+  const { error } = await supabase.from('events').update({ photo_url: photoUrl }).eq('id', eventId)
+  if (error) throw error
+  return photoUrl
+}
+
+export async function closeEvent(event, players) {
+  // Calcule le classement interne basé sur V/D dans cet évènement
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('event_id', event.id)
+
+  // Compte V/D par joueur
+  const stats = {}
+  const participants = event.participants || []
+  participants.forEach(id => { stats[id] = { wins: 0, losses: 0 } })
+
+  ;(matches || []).forEach(m => {
+    const winners = m.winner === 'A' ? m.team_a : m.team_b
+    const losers = m.winner === 'A' ? m.team_b : m.team_a
+    ;(winners || []).forEach(id => { if (stats[id]) stats[id].wins++ })
+    ;(losers || []).forEach(id => { if (stats[id]) stats[id].losses++ })
+  })
+
+  // Trie par victoires desc
+  const ranked = participants
+    .filter(id => players.find(p => p.id === id))
+    .sort((a, b) => (stats[b]?.wins || 0) - (stats[a]?.wins || 0))
+
+  // Distribue les points (égalités = partage)
+  const points = EVENT_POINTS[event.type] || [25, 15, 10]
+  const updates = []
+  let i = 0
+  while (i < ranked.length) {
+    const currentWins = stats[ranked[i]]?.wins || 0
+    const tied = ranked.filter(id => (stats[id]?.wins || 0) === currentWins)
+    const startIdx = ranked.indexOf(tied[0])
+    const endIdx = startIdx + tied.length - 1
+    const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
+    const sharedPts = Math.round(totalPts / tied.length)
+
+    tied.forEach(id => {
+      const p = players.find(pl => pl.id === id)
+      if (p && sharedPts > 0) {
+        updates.push(supabase.from('players').update({ elo: p.elo + sharedPts }).eq('id', id))
+      }
+    })
+    i += tied.length
+  }
+
+  await Promise.all(updates)
+
+  // Archive l'évènement
+  const standings = ranked.map((id, idx) => ({
+    id,
+    rank: idx + 1,
+    wins: stats[id]?.wins || 0,
+    losses: stats[id]?.losses || 0,
+  }))
+
+  const { error } = await supabase.from('events').update({ status: 'closed', standings }).eq('id', event.id)
+  if (error) throw error
+}
