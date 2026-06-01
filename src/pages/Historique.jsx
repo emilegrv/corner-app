@@ -48,74 +48,130 @@ function BackButton({ onClick, label }) {
   )
 }
 
+// 🔒 Easter egg — détection équipe Avengers
+const AVENGERS = ['juliette', 'jeremy', 'emilien']
+const normalizeStr = s => (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+function isAvengersTeam(teamIds, players) {
+  if (!teamIds || teamIds.filter(Boolean).length < 3) return false
+  const firstNames = teamIds.map(id => normalizeStr(players.find(p => p.id === id)?.first_name))
+  return AVENGERS.every(a => firstNames.includes(a))
+}
+
+const AVENGERS_STYLES = `
+  @keyframes avengerGlow {
+    0%   { box-shadow: 0 0 16px 3px rgba(255,0,128,0.5), 0 0 32px rgba(168,85,247,0.2); }
+    25%  { box-shadow: 0 0 16px 3px rgba(0,191,255,0.5), 0 0 32px rgba(255,224,0,0.2); }
+    50%  { box-shadow: 0 0 20px 5px rgba(168,85,247,0.6), 0 0 40px rgba(64,224,208,0.3); }
+    75%  { box-shadow: 0 0 16px 3px rgba(64,224,208,0.5), 0 0 32px rgba(255,0,128,0.2); }
+    100% { box-shadow: 0 0 16px 3px rgba(255,0,128,0.5), 0 0 32px rgba(168,85,247,0.2); }
+  }
+  @keyframes waveShimmerH {
+    0%   { transform: translateX(-100%) skewX(-20deg); opacity:0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateX(300%) skewX(-20deg); opacity:0; }
+  }
+  .avengers-row {
+    position: relative; overflow: hidden;
+    border: 2px solid transparent !important;
+    background-image: linear-gradient(white,white), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
+    background-origin: border-box !important;
+    background-clip: padding-box, border-box !important;
+    animation: avengerGlow 2s ease-in-out infinite;
+  }
+  .avengers-row::after {
+    content: '';
+    position: absolute; top:0; left:0; right:0; bottom:0;
+    background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.5) 50%, transparent 65%);
+    animation: waveShimmerH 2.4s ease-in-out infinite;
+    pointer-events: none; z-index: 1;
+  }
+  .avengers-wm {
+    position: absolute; top:50%; left:50%;
+    transform: translate(-50%,-50%) rotate(-8deg);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900; font-size: 52px; letter-spacing: 4px;
+    background: linear-gradient(135deg,rgba(100,180,255,0.15),rgba(168,85,247,0.2),rgba(255,200,0,0.12));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    pointer-events: none; user-select: none; white-space: nowrap; z-index: 0;
+  }
+  .avengers-inner-row { position: relative; z-index: 2; }
+`
+
 // ── Match row ─────────────────────────────────────────────
 function MatchRow({ match, players, highlightId }) {
   const getP = id => players.find(p => p.id === id)
   const winTeamIds = match.winner === 'A' ? match.team_a : match.team_b
   const loseTeamIds = match.winner === 'A' ? match.team_b : match.team_a
+  const isAvengers = isAvengersTeam(winTeamIds, players) || isAvengersTeam(loseTeamIds, players)
 
   return (
-    <div style={{
-      background: '#fff', borderRadius: 10,
-      border: `1px solid ${match.has_guest ? '#F5C842' : '#D8E4F5'}`,
-      padding: '12px 14px', marginBottom: 8,
-    }}>
-      {/* Date + event name */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 11, color: '#7A94B8', fontWeight: 600 }}>{formatDate(match.created_at)}</span>
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {match.beer_bonus && <span style={{ fontSize: 11, background: '#F0FAF4', color: '#1A8A4A', border: '1px solid #C6EFCE', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>🍺 +10</span>}
-          {match.has_guest && <span style={{ fontSize: 11, background: '#FFF8E6', color: '#856404', border: '1px solid #F5C842', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>Invité</span>}
+    <>
+      <style>{AVENGERS_STYLES}</style>
+      <div className={isAvengers ? 'avengers-row' : ''} style={{
+        background: '#fff', borderRadius: 10,
+        border: `1px solid ${match.has_guest ? '#F5C842' : '#D8E4F5'}`,
+        padding: '12px 14px', marginBottom: 8,
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {isAvengers && <div className="avengers-wm">AVENGERS</div>}
+        <div className={isAvengers ? 'avengers-inner-row' : ''}>
+
+          {/* Date + badges */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: '#7A94B8', fontWeight: 600 }}>{formatDate(match.created_at)}</span>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {isAvengers && <span style={{ fontSize: 11, background: 'linear-gradient(90deg,#ff0080,#a855f7)', color: '#fff', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>⚡ Avengers</span>}
+              {match.beer_bonus && <span style={{ fontSize: 11, background: '#F0FAF4', color: '#1A8A4A', border: '1px solid #C6EFCE', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>🍺 +10</span>}
+              {match.has_guest && <span style={{ fontSize: 11, background: '#FFF8E6', color: '#856404', border: '1px solid #F5C842', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>Invité</span>}
+            </div>
+          </div>
+
+          {match.event_name && (
+            <div style={{ fontWeight: 700, color: '#2E6CC7', fontSize: 13, marginBottom: 8 }}>{match.event_name}</div>
+          )}
+
+          {/* Teams + trophée */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'center' }}>
+            <div>
+              {winTeamIds.map(id => {
+                const p = getP(id)
+                return (
+                  <div key={id} style={{ fontSize: 13, color: '#1A8A4A', marginBottom: 2 }}>
+                    {highlightId ? formatNameBold(p, highlightId) : formatName(p)}
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#0A1628', whiteSpace: 'nowrap' }}>
+              🏆
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              {loseTeamIds.map(id => {
+                const p = getP(id)
+                return (
+                  <div key={id} style={{ fontSize: 13, color: '#7A94B8', marginBottom: 2 }}>
+                    {highlightId ? formatNameBold(p, highlightId) : formatName(p)}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ELO deltas */}
+          {!match.has_guest && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
+              <span style={{ fontSize: 11, color: '#7A94B8' }}>
+                {match.winner === 'A' ? '✓' : '✗'} A: <b style={{ color: match.delta_a >= 0 ? '#1A8A4A' : '#C0392B' }}>{match.delta_a >= 0 ? '+' : ''}{match.delta_a}</b>
+              </span>
+              <span style={{ fontSize: 11, color: '#7A94B8' }}>
+                {match.winner === 'B' ? '✓' : '✗'} B: <b style={{ color: match.delta_b >= 0 ? '#1A8A4A' : '#C0392B' }}>{match.delta_b >= 0 ? '+' : ''}{match.delta_b}</b>
+              </span>
+            </div>
+          )}
         </div>
       </div>
-      {match.event_name && (
-        <div style={{ fontWeight: 700, color: '#2E6CC7', fontSize: 13, marginBottom: 8 }}>{match.event_name}</div>
-      )}
-
-      {/* Teams + score */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 10, alignItems: 'center' }}>
-        {/* Winners */}
-        <div>
-          {winTeamIds.map(id => {
-            const p = getP(id)
-            return (
-              <div key={id} style={{ fontSize: 13, color: '#1A8A4A', marginBottom: 2 }}>
-                {highlightId ? formatNameBold(p, highlightId) : formatName(p)}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Score */}
-        <div style={{ textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#0A1628', whiteSpace: 'nowrap' }}>
-          🏆
-        </div>
-
-        {/* Losers */}
-        <div style={{ textAlign: 'right' }}>
-          {loseTeamIds.map(id => {
-            const p = getP(id)
-            return (
-              <div key={id} style={{ fontSize: 13, color: '#7A94B8', marginBottom: 2 }}>
-                {highlightId ? formatNameBold(p, highlightId) : formatName(p)}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ELO deltas */}
-      {!match.has_guest && (
-        <div style={{ display: 'flex', gap: 10, marginTop: 8, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 11, color: '#7A94B8' }}>
-            {match.winner === 'A' ? '✓' : '✗'} A: <b style={{ color: match.delta_a >= 0 ? '#1A8A4A' : '#C0392B' }}>{match.delta_a >= 0 ? '+' : ''}{match.delta_a}</b>
-          </span>
-          <span style={{ fontSize: 11, color: '#7A94B8' }}>
-            {match.winner === 'B' ? '✓' : '✗'} B: <b style={{ color: match.delta_b >= 0 ? '#1A8A4A' : '#C0392B' }}>{match.delta_b >= 0 ? '+' : ''}{match.delta_b}</b>
-          </span>
-        </div>
-      )}
-    </div>
+    </>
   )
 }
 
