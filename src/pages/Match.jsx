@@ -32,43 +32,57 @@ function computeDeltas(teamA, teamB, winnerTeam, beerBonus, players) {
   return { deltaA, deltaB }
 }
 
-// Dropdown joueur avec photo + rang
-function PlayerSelect({ value, onChange, players, exclude, label, allPlayers }) {
+// Dropdown joueur avec photo + rang + joueur extérieur à la volée
+function PlayerSelect({ value, onChange, players, exclude, label, allPlayers, guestName, onGuestName }) {
   const [open, setOpen] = useState(false)
+  const [typingGuest, setTypingGuest] = useState(false)
+  const [guestInput, setGuestInput] = useState('')
   const regular = players.filter(p => !p.is_guest)
-  const guests = players.filter(p => p.is_guest)
-  const selected = allPlayers.find(p => p.id === value)
+
+  const isGuest = value === '__guest__'
+  const selected = isGuest ? null : allPlayers.find(p => p.id === value)
+
   const rank = (id) => {
     const sorted = [...allPlayers].filter(p => !p.is_guest).sort((a, b) => b.elo - a.elo)
     return sorted.findIndex(p => p.id === id) + 1
   }
 
+  function confirmGuest() {
+    if (!guestInput.trim()) return
+    onGuestName(guestInput.trim())
+    onChange('__guest__')
+    setTypingGuest(false)
+    setGuestInput('')
+    setOpen(false)
+  }
+
+  const displayName = isGuest ? (guestName || 'Joueur extérieur') : selected ? formatName(selected) : null
+
   return (
     <div style={{ position: 'relative', marginBottom: 8 }}>
-      <div
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          background: value ? '#EBF2FC' : '#F4F8FE',
-          border: `1.5px solid ${value ? '#2E6CC7' : '#D8E4F5'}`,
-          borderRadius: 10, padding: '8px 12px',
-          cursor: 'pointer', transition: 'all 0.15s', minHeight: 52,
-        }}
-      >
-        {selected ? (
+      <div onClick={() => setOpen(o => !o)} style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: isGuest ? '#FFF8E6' : value ? '#EBF2FC' : '#F4F8FE',
+        border: `1.5px solid ${isGuest ? '#F5C842' : value ? '#2E6CC7' : '#D8E4F5'}`,
+        borderRadius: 10, padding: '8px 12px',
+        cursor: 'pointer', transition: 'all 0.15s', minHeight: 52,
+      }}>
+        {displayName ? (
           <>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', border: '2px solid #2E6CC7', background: '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-              {selected.photo_url
+            <div style={{ width: 34, height: 34, borderRadius: '50%', border: `2px solid ${isGuest ? '#F5C842' : '#2E6CC7'}`, background: isGuest ? '#FFF3CC' : '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              {!isGuest && selected?.photo_url
                 ? <img src={selected.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 900, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{initials(selected)}</span>
+                : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 900, fontSize: 13, color: isGuest ? '#856404' : 'rgba(255,255,255,0.6)' }}>
+                    {isGuest ? '👤' : initials(selected)}
+                  </span>
               }
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {formatName(selected)}
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: isGuest ? '#856404' : '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {displayName}
               </div>
-              <div style={{ fontSize: 11, color: '#2E6CC7', fontWeight: 700 }}>
-                #{rank(selected.id)}
+              <div style={{ fontSize: 11, color: isGuest ? '#B8860B' : '#2E6CC7', fontWeight: 700 }}>
+                {isGuest ? 'Extérieur — hors classement' : `#${rank(selected.id)}`}
               </div>
             </div>
           </>
@@ -83,10 +97,10 @@ function PlayerSelect({ value, onChange, players, exclude, label, allPlayers }) 
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
           background: '#fff', border: '1.5px solid #D8E4F5', borderRadius: 10,
           boxShadow: '0 8px 24px rgba(10,22,40,0.12)', marginTop: 4, overflow: 'hidden',
-          maxHeight: 260, overflowY: 'auto',
+          maxHeight: 300, overflowY: 'auto',
         }}>
           {regular.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
-            <div key={p.id} onClick={() => { onChange(p.id); setOpen(false) }} style={{
+            <div key={p.id} onClick={() => { onChange(p.id); onGuestName(''); setOpen(false) }} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 12px', cursor: 'pointer', transition: 'background 0.1s',
               background: p.id === value ? '#EBF2FC' : '#fff',
@@ -102,36 +116,49 @@ function PlayerSelect({ value, onChange, players, exclude, label, allPlayers }) 
                 }
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {formatName(p)}
-                </div>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formatName(p)}</div>
                 <div style={{ fontSize: 11, color: '#2E6CC7', fontWeight: 700 }}>#{rank(p.id)}</div>
               </div>
             </div>
           ))}
-          {guests.length > 0 && (
-            <>
-              <div style={{ padding: '6px 12px', fontSize: 10, fontWeight: 700, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1, background: '#F8FAFF' }}>Invités</div>
-              {guests.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
-                <div key={p.id} onClick={() => { onChange(p.id); setOpen(false) }} style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 12px', cursor: 'pointer',
-                  borderBottom: '1px solid #F0F4FB',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#F4F8FE'}
-                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px dashed #D8E4F5', background: '#F4F8FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 13, color: '#7A94B8' }}>{initials(p)}</span>
-                  </div>
-                  <div>
-                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#7A94B8' }}>👤 {formatName(p)}</div>
-                    <div style={{ fontSize: 11, color: '#B0C4DE' }}>Invité</div>
-                  </div>
+
+          {/* Séparateur + joueur extérieur */}
+          <div style={{ borderTop: '1px solid #F0F4FB' }}>
+            {!typingGuest ? (
+              <div onClick={e => { e.stopPropagation(); setTypingGuest(true) }} style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', cursor: 'pointer',
+                background: '#FFFBF0',
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = '#FFF8E6'}
+              onMouseLeave={e => e.currentTarget.style.background = '#FFFBF0'}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px dashed #F5C842', background: '#FFF8E6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16 }}>
+                  👤
                 </div>
-              ))}
-            </>
-          )}
+                <div>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#856404' }}>+ Joueur extérieur</div>
+                  <div style={{ fontSize: 11, color: '#B8860B' }}>Hors classement — ELO non modifié</div>
+                </div>
+              </div>
+            ) : (
+              <div onClick={e => e.stopPropagation()} style={{ padding: '10px 12px', background: '#FFFBF0' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#856404', marginBottom: 6 }}>Prénom du joueur extérieur</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    autoFocus
+                    value={guestInput}
+                    onChange={e => setGuestInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') confirmGuest(); if (e.key === 'Escape') { setTypingGuest(false); setGuestInput('') } }}
+                    placeholder="ex: Marco..."
+                    style={{ flex: 1, background: '#fff', border: '1.5px solid #F5C842', borderRadius: 7, padding: '7px 10px', fontFamily: "'Barlow', sans-serif", fontSize: 13, color: '#0A1628' }}
+                  />
+                  <button onClick={confirmGuest} style={{ background: '#F5C842', border: 'none', borderRadius: 7, padding: '7px 12px', fontWeight: 700, fontSize: 13, cursor: 'pointer', color: '#0A1628' }}>OK</button>
+                  <button onClick={() => { setTypingGuest(false); setGuestInput('') }} style={{ background: '#F0F4FB', border: 'none', borderRadius: 7, padding: '7px 10px', fontSize: 13, cursor: 'pointer', color: '#7A94B8' }}>✕</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -170,6 +197,8 @@ export default function Match() {
   const [players, setPlayers] = useState([])
   const [teamA, setTeamA] = useState(['', '', ''])
   const [teamB, setTeamB] = useState(['', '', ''])
+  const [guestNamesA, setGuestNamesA] = useState(['', '', ''])
+  const [guestNamesB, setGuestNamesB] = useState(['', '', ''])
   const [scoreA, setScoreA] = useState(null)
   const [scoreB, setScoreB] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -178,30 +207,35 @@ export default function Match() {
 
   const setA = (i, v) => setTeamA(t => { const n = [...t]; n[i] = v; return n })
   const setB = (i, v) => setTeamB(t => { const n = [...t]; n[i] = v; return n })
+  const setGuestA = (i, v) => setGuestNamesA(t => { const n = [...t]; n[i] = v; return n })
+  const setGuestB = (i, v) => setGuestNamesB(t => { const n = [...t]; n[i] = v; return n })
 
   const allSelected = teamA.every(Boolean) && teamB.every(Boolean)
   const allUnique = new Set([...teamA, ...teamB]).size === 6
 
   const winner = scoreA === 3 ? 'A' : scoreB === 3 ? 'B' : null
   const scoresValid = scoreA !== null && scoreB !== null && winner !== null
-  // Bonus bière automatique si score 3-0
   const beerBonus = scoresValid && ((scoreA === 3 && scoreB === 0) || (scoreB === 3 && scoreA === 0))
-
+  const hasGuest = allSelected && ([...teamA, ...teamB].includes('__guest__'))
   const canSubmit = allSelected && allUnique && scoresValid
-  const hasGuest = canSubmit && [...teamA, ...teamB].some(id => players.find(p => p.id === id)?.is_guest)
 
   const preview = useMemo(() => {
-    if (!canSubmit || !winner) return null
+    if (!canSubmit || !winner || hasGuest) return null
+    const realTeamA = teamA.filter(id => id !== '__guest__')
+    const realTeamB = teamB.filter(id => id !== '__guest__')
+    if (realTeamA.length < 3 || realTeamB.length < 3) return null
     return computeDeltas(teamA, teamB, winner, beerBonus, players)
-  }, [canSubmit, winner, teamA, teamB, beerBonus, players])
+  }, [canSubmit, winner, hasGuest, teamA, teamB, beerBonus, players])
 
   async function handleSubmit() {
     setLoading(true)
     try {
       const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB })
-      toast(result.hasGuest ? 'Match enregistré (invité — ELO non modifié)' : 'Match enregistré !')
+      toast(hasGuest ? 'Match enregistré (joueur extérieur — ELO non modifié)' : 'Match enregistré !')
       setTeamA(['', '', ''])
       setTeamB(['', '', ''])
+      setGuestNamesA(['', '', ''])
+      setGuestNamesB(['', '', ''])
       setScoreA(null)
       setScoreB(null)
       getPlayers().then(setPlayers)
@@ -305,7 +339,8 @@ export default function Match() {
             {[0, 1, 2].map(i => (
               <PlayerSelect key={i} value={teamA[i]} onChange={v => setA(i, v)}
                 players={players} allPlayers={players}
-                exclude={exclude(teamA, i)} label={`Joueur ${i + 1}`} />
+                exclude={exclude(teamA, i)} label={`Joueur ${i + 1}`}
+                guestName={guestNamesA[i]} onGuestName={v => setGuestA(i, v)} />
             ))}
           </div>
         </div>
@@ -325,7 +360,8 @@ export default function Match() {
             {[0, 1, 2].map(i => (
               <PlayerSelect key={i} value={teamB[i]} onChange={v => setB(i, v)}
                 players={players} allPlayers={players}
-                exclude={exclude(teamB, i)} label={`Joueur ${i + 1}`} />
+                exclude={exclude(teamB, i)} label={`Joueur ${i + 1}`}
+                guestName={guestNamesB[i]} onGuestName={v => setGuestB(i, v)} />
             ))}
           </div>
         </div>
