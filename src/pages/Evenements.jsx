@@ -55,14 +55,14 @@ const TYPE_BG = {
 // ── Create event modal ────────────────────────────────────
 function CreateModal({ onClose, onCreated }) {
   const toast = useToast()
-  const [form, setForm] = useState({ name: '', type: 'ACP 250', description: '' })
+  const [form, setForm] = useState({ name: '', type: 'ACP 250', description: '', date: '' })
   const [saving, setSaving] = useState(false)
 
   async function handleCreate() {
     if (!form.name.trim()) return
     setSaving(true)
     try {
-      const ev = await createEvent(form)
+      const ev = await createEvent({ name: form.name, type: form.type, description: form.description, date: form.date || null })
       toast(`Évènement "${form.name}" créé !`)
       onCreated(ev)
     } catch (e) { toast('Erreur : ' + e.message, true) }
@@ -101,10 +101,16 @@ function CreateModal({ onClose, onCreated }) {
           </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 14 }}>
+          <label className="form-label">Date de l'évènement</label>
+          <input className="input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
           <label className="form-label">Description (optionnel)</label>
           <textarea className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Lieu, règles spéciales..." rows={3} style={{ resize: 'vertical' }} />
+        </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -183,6 +189,11 @@ function EventDetail({ event, players, onBack, onRefresh }) {
             <div>
               <span style={{ display: 'inline-block', background: color, color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>{event.type}</span>
               <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 32, color: '#fff', letterSpacing: 1 }}>{event.name}</div>
+              {event.date && (
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: '#fff', marginTop: 4 }}>
+                  {new Date(event.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </div>
+              )}
               {event.description && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{event.description}</div>}
             </div>
             {!isClosed && (
@@ -401,6 +412,11 @@ function EventCard({ event, players, onClick }) {
             {isClosed && <span style={{ background: 'rgba(91,191,122,0.2)', color: '#5BBF7A', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>✓ Terminé</span>}
           </div>
           <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#fff', letterSpacing: 0.5 }}>{event.name}</div>
+          {event.date && (
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#fff', marginTop: 2 }}>
+              {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          )}
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{participants.length} participant{participants.length > 1 ? 's' : ''}</div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
