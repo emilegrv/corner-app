@@ -111,7 +111,6 @@ function CreateModal({ onClose, onCreated }) {
           <textarea className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Lieu, règles spéciales..." rows={3} style={{ resize: 'vertical' }} />
         </div>
-        </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
