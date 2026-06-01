@@ -65,6 +65,13 @@ const AVENGERS_STYLES = `
     75%  { box-shadow: 0 0 16px 3px rgba(64,224,208,0.5), 0 0 32px rgba(255,0,128,0.2); }
     100% { box-shadow: 0 0 16px 3px rgba(255,0,128,0.5), 0 0 32px rgba(168,85,247,0.2); }
   }
+  @keyframes bgPulseH {
+    0%   { background-color: rgba(30,80,200,0.07); }
+    25%  { background-color: rgba(168,85,247,0.09); }
+    50%  { background-color: rgba(0,191,255,0.1); }
+    75%  { background-color: rgba(64,224,208,0.08); }
+    100% { background-color: rgba(30,80,200,0.07); }
+  }
   @keyframes waveShimmerH {
     0%   { transform: translateX(-100%) skewX(-20deg); opacity:0; }
     20%  { opacity: 1; }
@@ -74,10 +81,10 @@ const AVENGERS_STYLES = `
   .avengers-row {
     position: relative; overflow: hidden;
     border: 2px solid transparent !important;
-    background-image: linear-gradient(white,white), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
+    background-image: linear-gradient(rgba(30,80,200,0.07), rgba(30,80,200,0.07)), linear-gradient(120deg,#ff0080,#ff8c00,#ffe000,#40e0d0,#00bfff,#a855f7,#ff0080) !important;
     background-origin: border-box !important;
     background-clip: padding-box, border-box !important;
-    animation: avengerGlow 2s ease-in-out infinite;
+    animation: avengerGlow 2s ease-in-out infinite, bgPulseH 2s ease-in-out infinite;
   }
   .avengers-row::after {
     content: '';
@@ -91,7 +98,7 @@ const AVENGERS_STYLES = `
     transform: translate(-50%,-50%) rotate(-8deg);
     font-family: 'Barlow Condensed', sans-serif;
     font-weight: 900; font-size: 52px; letter-spacing: 4px;
-    background: linear-gradient(135deg,rgba(100,180,255,0.15),rgba(168,85,247,0.2),rgba(255,200,0,0.12));
+    background: linear-gradient(135deg,rgba(100,180,255,0.25),rgba(168,85,247,0.3),rgba(255,200,0,0.2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
     pointer-events: none; user-select: none; white-space: nowrap; z-index: 0;
   }
