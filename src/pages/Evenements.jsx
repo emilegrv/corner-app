@@ -116,7 +116,7 @@ function CreateModal({ onClose, onCreated }) {
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
           <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleCreate} disabled={!form.name.trim() || saving}>
-            {saving ? 'Création...' : 'Créer l\'évènement'}
+            {saving ? 'Création...' : "Créer l'évènement"}
           </button>
         </div>
       </div>
