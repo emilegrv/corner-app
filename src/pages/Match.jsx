@@ -310,22 +310,46 @@ export default function Match() {
           {/* ELO Preview */}
           {preview && !hasGuest && (
             <div className="card" style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 10, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, marginBottom: 10 }}>
+              <div style={{ fontSize: 10, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, marginBottom: 12 }}>
                 Aperçu ELO {beerBonus ? '(+10 bonus bière inclus)' : ''}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {[...teamA.map(id => ({ id, delta: preview.deltaA })), ...teamB.map(id => ({ id, delta: preview.deltaB }))].map(({ id, delta }) => {
-                  const p = players.find(pl => pl.id === id)
-                  if (!p) return null
-                  return (
-                    <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F4F8FE', borderRadius: 8, padding: '8px 12px' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p.first_name || p.name}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: delta >= 0 ? '#1A8A4A' : '#C0392B' }}>
-                        {delta >= 0 ? '+' : ''}{delta}
-                      </span>
-                    </div>
-                  )
-                })}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: '0 16px' }}>
+                {/* Équipe A */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Équipe A</div>
+                  {teamA.map(id => {
+                    const p = players.find(pl => pl.id === id)
+                    if (!p) return null
+                    return (
+                      <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F4F8FE', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p.first_name || p.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: preview.deltaA >= 0 ? '#1A8A4A' : '#C0392B' }}>
+                          {preview.deltaA >= 0 ? '+' : ''}{preview.deltaA}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Séparateur vertical */}
+                <div style={{ background: '#D8E4F5' }} />
+
+                {/* Équipe B */}
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#C87941', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Équipe B</div>
+                  {teamB.map(id => {
+                    const p = players.find(pl => pl.id === id)
+                    if (!p) return null
+                    return (
+                      <div key={id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F4F8FE', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p.first_name || p.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: preview.deltaB >= 0 ? '#1A8A4A' : '#C0392B' }}>
+                          {preview.deltaB >= 0 ? '+' : ''}{preview.deltaB}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}
