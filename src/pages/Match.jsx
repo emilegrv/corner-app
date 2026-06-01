@@ -10,6 +10,12 @@ function formatName(p) {
   return parts.length > 0 ? parts.join(' ') : p.name || '?'
 }
 
+function initials(p) {
+  const fn = p.first_name || p.name || '?'
+  const ln = p.last_name || ''
+  return (fn[0] + (ln[0] || fn[1] || '')).toUpperCase()
+}
+
 function computeDeltas(teamA, teamB, winnerTeam, beerBonus, players) {
   const hasGuest = [...teamA, ...teamB].some(id => players.find(p => p.id === id)?.is_guest)
   if (hasGuest) return null
@@ -26,60 +32,135 @@ function computeDeltas(teamA, teamB, winnerTeam, beerBonus, players) {
   return { deltaA, deltaB }
 }
 
-function PlayerSelect({ value, onChange, players, exclude, label }) {
+// Dropdown joueur avec photo + rang
+function PlayerSelect({ value, onChange, players, exclude, label, allPlayers }) {
+  const [open, setOpen] = useState(false)
   const regular = players.filter(p => !p.is_guest)
   const guests = players.filter(p => p.is_guest)
+  const selected = allPlayers.find(p => p.id === value)
+  const rank = (id) => {
+    const sorted = [...allPlayers].filter(p => !p.is_guest).sort((a, b) => b.elo - a.elo)
+    return sorted.findIndex(p => p.id === id) + 1
+  }
+
   return (
-    <select className="select" value={value} onChange={e => onChange(e.target.value)} style={{ marginBottom: 8 }}>
-      <option value="">— {label} —</option>
-      {regular.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
-        <option key={p.id} value={p.id}>{formatName(p)} ({p.elo})</option>
-      ))}
-      {guests.length > 0 && (
-        <>
-          <option disabled>── Invités ──</option>
-          {guests.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
-            <option key={p.id} value={p.id}>👤 {formatName(p)} (invité)</option>
+    <div style={{ position: 'relative', marginBottom: 8 }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          background: value ? '#EBF2FC' : '#F4F8FE',
+          border: `1.5px solid ${value ? '#2E6CC7' : '#D8E4F5'}`,
+          borderRadius: 10, padding: '8px 12px',
+          cursor: 'pointer', transition: 'all 0.15s', minHeight: 52,
+        }}
+      >
+        {selected ? (
+          <>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', border: '2px solid #2E6CC7', background: '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+              {selected.photo_url
+                ? <img src={selected.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 900, fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{initials(selected)}</span>
+              }
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {formatName(selected)}
+              </div>
+              <div style={{ fontSize: 11, color: '#2E6CC7', fontWeight: 700 }}>
+                #{rank(selected.id)}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div style={{ flex: 1, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, color: '#7A94B8', fontWeight: 600 }}>— {label} —</div>
+        )}
+        <span style={{ color: '#7A94B8', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+          background: '#fff', border: '1.5px solid #D8E4F5', borderRadius: 10,
+          boxShadow: '0 8px 24px rgba(10,22,40,0.12)', marginTop: 4, overflow: 'hidden',
+          maxHeight: 260, overflowY: 'auto',
+        }}>
+          {regular.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
+            <div key={p.id} onClick={() => { onChange(p.id); setOpen(false) }} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', cursor: 'pointer', transition: 'background 0.1s',
+              background: p.id === value ? '#EBF2FC' : '#fff',
+              borderBottom: '1px solid #F0F4FB',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#F4F8FE'}
+            onMouseLeave={e => e.currentTarget.style.background = p.id === value ? '#EBF2FC' : '#fff'}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #2E6CC7', background: '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
+                {p.photo_url
+                  ? <img src={p.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 900, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{initials(p)}</span>
+                }
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#0A1628', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {formatName(p)}
+                </div>
+                <div style={{ fontSize: 11, color: '#2E6CC7', fontWeight: 700 }}>#{rank(p.id)}</div>
+              </div>
+            </div>
           ))}
-        </>
+          {guests.length > 0 && (
+            <>
+              <div style={{ padding: '6px 12px', fontSize: 10, fontWeight: 700, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1, background: '#F8FAFF' }}>Invités</div>
+              {guests.filter(p => !exclude.includes(p.id) || p.id === value).map(p => (
+                <div key={p.id} onClick={() => { onChange(p.id); setOpen(false) }} style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 12px', cursor: 'pointer',
+                  borderBottom: '1px solid #F0F4FB',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#F4F8FE'}
+                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px dashed #D8E4F5', background: '#F4F8FE', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 13, color: '#7A94B8' }}>{initials(p)}</span>
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#7A94B8' }}>👤 {formatName(p)}</div>
+                    <div style={{ fontSize: 11, color: '#B0C4DE' }}>Invité</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       )}
-    </select>
+    </div>
   )
 }
 
-// Boutons 0/1/2/3
-function ScoreButtons({ value, onChange, otherScore, label, color }) {
+// Boutons score 0/1/2/3
+function ScoreButtons({ value, onChange, otherScore, color }) {
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 10, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, marginBottom: 8 }}>{label}</div>
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-        {[0, 1, 2, 3].map(n => {
-          const isTie = n === 3 && otherScore === 3
-          const selected = value === n
-          return (
-            <button
-              key={n}
-              onClick={() => !isTie && onChange(n)}
-              disabled={isTie}
-              title={isTie ? 'Contraire à Sanglich de faire match nul !' : ''}
-              style={{
-                width: 44, height: 44,
-                borderRadius: 8,
-                border: `2px solid ${selected ? color : isTie ? '#F5C0C0' : '#D8E4F5'}`,
-                background: selected ? color : isTie ? '#FFF0F0' : '#F4F8FE',
-                color: selected ? '#fff' : isTie ? '#E0A0A0' : '#0A1628',
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 900, fontSize: 22,
-                cursor: isTie ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s',
-                opacity: isTie ? 0.5 : 1,
-              }}
-            >
-              {n}
-            </button>
-          )
-        })}
-      </div>
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      {[0, 1, 2, 3].map(n => {
+        const isTie = n === 3 && otherScore === 3
+        const selected = value === n
+        return (
+          <button key={n} onClick={() => !isTie && onChange(n)} disabled={isTie}
+            title={isTie ? 'Contraire à Sanglich !' : ''}
+            style={{
+              width: 52, height: 52, borderRadius: 10,
+              border: `2.5px solid ${selected ? color : isTie ? '#F5C0C0' : '#D8E4F5'}`,
+              background: selected ? color : isTie ? '#FFF0F0' : '#F4F8FE',
+              color: selected ? '#fff' : isTie ? '#E0A0A0' : '#0A1628',
+              fontFamily: "'Barlow Condensed', sans-serif",
+              fontWeight: 900, fontSize: 26,
+              cursor: isTie ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s', opacity: isTie ? 0.4 : 1,
+            }}
+          >{n}</button>
+        )
+      })}
     </div>
   )
 }
@@ -91,7 +172,6 @@ export default function Match() {
   const [teamB, setTeamB] = useState(['', '', ''])
   const [scoreA, setScoreA] = useState(null)
   const [scoreB, setScoreB] = useState(null)
-  const [beerBonus, setBeerBonus] = useState(false)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => { getPlayers().then(setPlayers) }, [])
@@ -102,9 +182,10 @@ export default function Match() {
   const allSelected = teamA.every(Boolean) && teamB.every(Boolean)
   const allUnique = new Set([...teamA, ...teamB]).size === 6
 
-  // Le gagnant est l'équipe avec le score le plus haut (forcément 3)
   const winner = scoreA === 3 ? 'A' : scoreB === 3 ? 'B' : null
   const scoresValid = scoreA !== null && scoreB !== null && winner !== null
+  // Bonus bière automatique si score 3-0
+  const beerBonus = scoresValid && ((scoreA === 3 && scoreB === 0) || (scoreB === 3 && scoreA === 0))
 
   const canSubmit = allSelected && allUnique && scoresValid
   const hasGuest = canSubmit && [...teamA, ...teamB].some(id => players.find(p => p.id === id)?.is_guest)
@@ -123,7 +204,6 @@ export default function Match() {
       setTeamB(['', '', ''])
       setScoreA(null)
       setScoreB(null)
-      setBeerBonus(false)
       getPlayers().then(setPlayers)
     } catch (e) {
       toast('Erreur : ' + e.message, true)
@@ -139,55 +219,82 @@ export default function Match() {
     )
   }
 
+  const allIds = [...teamA, ...teamB].filter(Boolean)
+  const exclude = (team, idx) => [...team.filter((_, j) => j !== idx), ...(team === teamA ? teamB : teamA)].filter(Boolean)
+
   return (
     <main className="page">
       <div className="page-title">Nouveau match</div>
 
-      {/* Teams */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, marginBottom: 20, alignItems: 'start' }}>
-        {[
-          { label: 'Équipe A', team: teamA, setSlot: setA, color: '#2E6CC7' },
-          { label: 'Équipe B', team: teamB, setSlot: setB, color: '#C87941' }
-        ].map(({ label, team, setSlot, color }, ti) => (
-          <div key={label} className="card" style={{ borderTop: `3px solid ${color}` }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>{label}</div>
-            {[0, 1, 2].map(i => (
-              <PlayerSelect key={i} value={team[i]} onChange={v => setSlot(i, v)} players={players}
-                exclude={[...team.filter((_, j) => j !== i), ...(ti === 0 ? teamB : teamA)].filter(Boolean)}
-                label={`Joueur ${i + 1}`} />
-            ))}
-          </div>
-        ))}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 52, fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 900, color: '#7A94B8' }}>VS</div>
+      {/* Teams — layout 3 colonnes égales */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 60px 1fr', gap: 12, marginBottom: 24, alignItems: 'start' }}>
+
+        {/* Équipe A */}
+        <div className="card" style={{ borderTop: '3px solid #2E6CC7' }}>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Équipe A</div>
+          {[0, 1, 2].map(i => (
+            <PlayerSelect key={i} value={teamA[i]} onChange={v => setA(i, v)}
+              players={players} allPlayers={players}
+              exclude={exclude(teamA, i)} label={`Joueur ${i + 1}`} />
+          ))}
+        </div>
+
+        {/* VS au milieu */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', paddingTop: 40 }}>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#7A94B8', writingMode: 'horizontal-tb' }}>VS</div>
+        </div>
+
+        {/* Équipe B */}
+        <div className="card" style={{ borderTop: '3px solid #C87941' }}>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#C87941', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Équipe B</div>
+          {[0, 1, 2].map(i => (
+            <PlayerSelect key={i} value={teamB[i]} onChange={v => setB(i, v)}
+              players={players} allPlayers={players}
+              exclude={exclude(teamB, i)} label={`Joueur ${i + 1}`} />
+          ))}
+        </div>
       </div>
 
       {/* Score */}
       {allSelected && allUnique && (
         <>
           <div className="card" style={{ marginBottom: 20 }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
-              Score
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, alignItems: 'center' }}>
-              <ScoreButtons value={scoreA} onChange={setScoreA} otherScore={scoreB} label="Équipe A" color="#2E6CC7" />
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 28, fontWeight: 900, color: '#D8E4F5' }}>—</div>
-              <ScoreButtons value={scoreB} onChange={setScoreB} otherScore={scoreA} label="Équipe B" color="#C87941" />
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 18 }}>Score</div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 40px 1fr', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+              <ScoreButtons value={scoreA} onChange={setScoreA} otherScore={scoreB} color="#2E6CC7" />
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: '#D8E4F5', textAlign: 'center' }}>—</div>
+              <ScoreButtons value={scoreB} onChange={setScoreB} otherScore={scoreA} color="#C87941" />
             </div>
 
-            {/* Score display + winner */}
+            {/* Résultat affiché */}
             {scoresValid && (
-              <div style={{ textAlign: 'center', marginTop: 16, padding: '12px', background: '#F4F8FE', borderRadius: 10 }}>
-                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 32, color: winner === 'A' ? '#2E6CC7' : '#7A94B8' }}>{scoreA}</span>
-                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, color: '#D8E4F5', margin: '0 10px' }}>—</span>
-                <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 32, color: winner === 'B' ? '#C87941' : '#7A94B8' }}>{scoreB}</span>
-                <div style={{ fontSize: 13, fontWeight: 700, color: winner === 'A' ? '#2E6CC7' : '#C87941', marginTop: 6 }}>
+              <div style={{ textAlign: 'center', padding: '14px 16px', background: '#F4F8FE', borderRadius: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 48, color: winner === 'A' ? '#2E6CC7' : '#C0C8D8', lineHeight: 1 }}>{scoreA}</span>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 32, color: '#D8E4F5' }}>—</span>
+                  <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 48, color: winner === 'B' ? '#C87941' : '#C0C8D8', lineHeight: 1 }}>{scoreB}</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: winner === 'A' ? '#2E6CC7' : '#C87941', marginTop: 6 }}>
                   🏆 Équipe {winner} gagne
                 </div>
+
+                {/* Bonus bière automatique */}
+                {beerBonus && (
+                  <div style={{ marginTop: 12, padding: '10px 14px', background: '#F0FAF4', border: '1px solid #C6EFCE', borderRadius: 8 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1A8A4A' }}>
+                      🍺 * Bonus bière +10 pts pour l'équipe {winner} !
+                    </div>
+                    <div style={{ fontSize: 12, color: '#5A9A6A', marginTop: 3 }}>
+                      Score 3-0 — l'équipe {winner === 'A' ? 'B' : 'A'} n'a pas fini une seule bière
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {scoreA !== null && scoreB !== null && !scoresValid && (
-              <div style={{ textAlign: 'center', marginTop: 12, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>
+              <div style={{ textAlign: 'center', marginTop: 10, fontSize: 13, color: '#C0392B', fontWeight: 600 }}>
                 ⚠️ Contraire à Sanglich de faire match nul — une équipe doit arriver à 3 !
               </div>
             )}
@@ -197,35 +304,6 @@ export default function Match() {
           {hasGuest && (
             <div style={{ background: '#FFF8E6', border: '1px solid #F5C842', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#856404', fontWeight: 600 }}>
               👤 Un invité est présent — ce match ne comptera pas pour le classement ELO.
-            </div>
-          )}
-
-          {/* Beer bonus */}
-          {scoresValid && !hasGuest && (
-            <div onClick={() => setBeerBonus(b => !b)} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '14px 16px', borderRadius: 10, marginBottom: 20,
-              border: `2px solid ${beerBonus ? '#1A8A4A' : '#D8E4F5'}`,
-              background: beerBonus ? '#F0FAF4' : '#fff',
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}>
-              <div style={{
-                width: 22, height: 22, borderRadius: 6,
-                border: `2px solid ${beerBonus ? '#1A8A4A' : '#D8E4F5'}`,
-                background: beerBonus ? '#1A8A4A' : '#fff',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0, fontSize: 14, color: '#fff', fontWeight: 700,
-              }}>
-                {beerBonus ? '✓' : ''}
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: beerBonus ? '#1A8A4A' : '#0A1628' }}>
-                  Bonus bière 🍺 +10 pts
-                </div>
-                <div style={{ fontSize: 12, color: '#7A94B8', marginTop: 2 }}>
-                  Personne dans l'équipe {winner === 'A' ? 'B' : 'A'} n'a fini sa bière
-                </div>
-              </div>
             </div>
           )}
 
