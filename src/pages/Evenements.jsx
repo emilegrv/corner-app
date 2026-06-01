@@ -1,546 +1,326 @@
-import React, { useEffect, useState, useRef } from 'react'
-import { getEvents, getPlayers, createEvent, updateEvent, updateEventParticipants, uploadEventPhoto, closeEvent, deleteEvent, EVENT_POINTS } from '../lib/supabase'
-import { useToast } from '../App'
+import { createClient } from '@supabase/supabase-js'
 
-const ME_KEY = 'sanglich_me_id'
-const EVENT_TYPES = ['ACP 250', 'ACP 500', 'ACP 1000', 'WST']
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-function formatName(p) {
-  if (!p) return '?'
-  const parts = []
-  if (p.first_name) parts.push(p.first_name)
-  if (p.nickname) parts.push(`"${p.nickname}"`)
-  if (p.last_name) parts.push(p.last_name)
-  return parts.length > 0 ? parts.join(' ') : p.name || '?'
+export const supabase = createClient(supabaseUrl, supabaseKey)
+
+export async function getPlayers() {
+  const { data, error } = await supabase
+    .from('players')
+    .select('*')
+    .order('elo', { ascending: false })
+  if (error) throw error
+  return data
 }
 
-function initials(p) {
-  if (!p) return '?'
-  const fn = p.first_name || p.name || '?'
-  const ln = p.last_name || ''
-  return (fn[0] + (ln[0] || fn[1] || '')).toUpperCase()
+export async function addPlayer({ first_name, last_name, nickname, is_guest = false }) {
+  const name = [first_name, nickname ? `"${nickname}"` : null, last_name].filter(Boolean).join(' ')
+  const { data, error } = await supabase
+    .from('players')
+    .insert({ name, first_name, last_name: last_name || null, nickname: nickname || null, is_guest, elo: 1000, wins: 0, losses: 0 })
+    .select()
+    .single()
+  if (error) throw error
+  return data
 }
 
-function shuffle(arr) {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
+export async function updatePlayer(id, { first_name, last_name, nickname }) {
+  const name = [first_name, nickname ? `"${nickname}"` : null, last_name].filter(Boolean).join(' ')
+  const { error } = await supabase
+    .from('players')
+    .update({ name, first_name, last_name: last_name || null, nickname: nickname || null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function uploadPhoto(playerId, file) {
+  const ext = file.name.split('.').pop()
+  const path = `${playerId}.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from('player-photos')
+    .upload(path, file, { upsert: true })
+  if (upErr) throw upErr
+  const { data } = supabase.storage.from('player-photos').getPublicUrl(path)
+  const photoUrl = data.publicUrl + '?t=' + Date.now()
+  const { error } = await supabase.from('players').update({ photo_url: photoUrl }).eq('id', playerId)
+  if (error) throw error
+}
+
+export async function deletePlayer(id) {
+  const { error } = await supabase.from('players').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function getMatches() {
+  const { data, error } = await supabase
+    .from('matches')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100)
+  if (error) throw error
+  return data
+}
+
+export async function deleteLastMatch(players) {
+  const { data: matches, error: fetchErr } = await supabase
+    .from('matches')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1)
+  if (fetchErr) throw fetchErr
+  if (!matches || matches.length === 0) throw new Error('Aucun match à supprimer')
+
+  const match = matches[0]
+  const updates = []
+  if (!match.has_guest) {
+    for (const id of (match.team_a || [])) {
+      if (id === '__guest__') continue
+      const p = players.find(p => p.id === id)
+      if (!p) continue
+      updates.push(supabase.from('players').update({
+        elo: p.elo - match.delta_a,
+        wins: match.winner === 'A' ? Math.max(0, p.wins - 1) : p.wins,
+        losses: match.winner === 'B' ? Math.max(0, p.losses - 1) : p.losses,
+      }).eq('id', id))
+    }
+    for (const id of (match.team_b || [])) {
+      if (id === '__guest__') continue
+      const p = players.find(p => p.id === id)
+      if (!p) continue
+      updates.push(supabase.from('players').update({
+        elo: p.elo - match.delta_b,
+        wins: match.winner === 'B' ? Math.max(0, p.wins - 1) : p.wins,
+        losses: match.winner === 'A' ? Math.max(0, p.losses - 1) : p.losses,
+      }).eq('id', id))
+    }
+    await Promise.all(updates)
   }
-  return a
+  const { error: delErr } = await supabase.from('matches').delete().eq('id', match.id)
+  if (delErr) throw delErr
+  return match
 }
 
-function makeTeams(ids) {
-  const shuffled = shuffle(ids)
-  const teams = []
-  for (let i = 0; i < shuffled.length; i += 3) {
-    teams.push(shuffled.slice(i, i + 3))
-  }
-  return teams
+export async function getSeasons() {
+  const { data, error } = await supabase
+    .from('seasons')
+    .select('*')
+    .order('year', { ascending: false })
+  if (error) throw error
+  return data
 }
 
-const TYPE_COLORS = {
-  'ACP 250': '#2E6CC7',
-  'ACP 500': '#C87941',
-  'ACP 1000': '#1A8A4A',
-  'WST': '#7C3AED',
-}
-const TYPE_BG = {
-  'ACP 250': '#EBF2FC',
-  'ACP 500': '#FDF3E8',
-  'ACP 1000': '#F0FAF4',
-  'WST': '#F3F0FF',
-}
+const K = 40
+const BEER_BONUS = 10
 
-// ── Create event modal ────────────────────────────────────
-function CreateModal({ onClose, onCreated }) {
-  const toast = useToast()
-  const [form, setForm] = useState({ name: '', type: 'ACP 250', description: '', date: '' })
-  const [saving, setSaving] = useState(false)
+export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players }) {
+  const allIds = [...teamA, ...teamB]
+  const hasGuest = allIds.some(id => players.find(p => p.id === id)?.is_guest) || allIds.includes('__guest__')
 
-  async function handleCreate() {
-    if (!form.name.trim()) return
-    setSaving(true)
-    try {
-      const ev = await createEvent({ name: form.name, type: form.type, description: form.description, date: form.date || null })
-      toast(`Évènement "${form.name}" créé !`)
-      onCreated(ev)
-    } catch (e) { toast('Erreur : ' + e.message, true) }
-    finally { setSaving(false) }
+  let deltaA = 0
+  let deltaB = 0
+
+  if (!hasGuest) {
+    const avg = ids => ids.reduce((s, id) => s + players.find(p => p.id === id).elo, 0) / ids.length
+    const expA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400))
+    const sa = winnerTeam === 'A' ? 1 : 0
+    deltaA = Math.round(K * (sa - expA))
+    deltaB = Math.round(K * ((1 - sa) - (1 - expA)))
+    if (beerBonus) {
+      if (winnerTeam === 'A') deltaA += BEER_BONUS
+      else deltaB += BEER_BONUS
+    }
   }
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(10,22,40,0.3)' }}>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 20 }}>
-          Nouvel évènement
-        </div>
+  const { error: matchError } = await supabase.from('matches').insert({
+    team_a: teamA, team_b: teamB,
+    winner: winnerTeam,
+    beer_bonus: beerBonus,
+    has_guest: hasGuest,
+    delta_a: deltaA, delta_b: deltaB,
+  })
+  if (matchError) throw matchError
 
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label">Nom de l'évènement *</label>
-          <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="ex: Sanglich Open 2025" maxLength={50} />
-        </div>
+  if (!hasGuest) {
+    const updates = []
+    for (const id of teamA) {
+      const p = players.find(p => p.id === id)
+      if (!p) continue
+      updates.push(supabase.from('players').update({
+        elo: p.elo + deltaA,
+        wins: winnerTeam === 'A' ? p.wins + 1 : p.wins,
+        losses: winnerTeam === 'B' ? p.losses + 1 : p.losses,
+      }).eq('id', id))
+    }
+    for (const id of teamB) {
+      const p = players.find(p => p.id === id)
+      if (!p) continue
+      updates.push(supabase.from('players').update({
+        elo: p.elo + deltaB,
+        wins: winnerTeam === 'B' ? p.wins + 1 : p.wins,
+        losses: winnerTeam === 'A' ? p.losses + 1 : p.losses,
+      }).eq('id', id))
+    }
+    await Promise.all(updates)
+  }
 
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label">Type</label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {EVENT_TYPES.map(t => (
-              <button key={t} onClick={() => setForm(f => ({ ...f, type: t }))} style={{
-                padding: '10px 12px', borderRadius: 8, cursor: 'pointer', transition: 'all 0.15s',
-                border: `2px solid ${form.type === t ? TYPE_COLORS[t] : '#D8E4F5'}`,
-                background: form.type === t ? TYPE_BG[t] : '#fff',
-                fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700,
-                color: form.type === t ? TYPE_COLORS[t] : '#7A94B8',
-              }}>
-                {t}
-                <div style={{ fontSize: 10, fontWeight: 600, marginTop: 2, color: form.type === t ? TYPE_COLORS[t] : '#B0C4DE' }}>
-                  {EVENT_POINTS[t]?.join(' / ')} pts
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+  return { deltaA, deltaB, hasGuest }
+}
 
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label">Date de l'évènement</label>
-          <input className="input" type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-        </div>
-
-        <div style={{ marginBottom: 14 }}>
-          <label className="form-label">Description (optionnel)</label>
-          <textarea className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-            placeholder="Lieu, règles spéciales..." rows={3} style={{ resize: 'vertical' }} />
-        </div>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>Annuler</button>
-          <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleCreate} disabled={!form.name.trim() || saving}>
-            {saving ? 'Création...' : "Créer l'évènement"}
-          </button>
-        </div>
-      </div>
-    </div>
+export async function archiveSeason(year, players) {
+  const ranked = players.filter(p => !p.is_guest)
+  const snapshot = ranked.map(p => ({
+    id: p.id, name: p.name, first_name: p.first_name,
+    last_name: p.last_name, nickname: p.nickname,
+    elo: p.elo, wins: p.wins, losses: p.losses,
+  }))
+  const { error } = await supabase.from('seasons').insert({
+    year, snapshot,
+    champion_id: ranked[0]?.id,
+    champion_name: ranked[0]?.name,
+    champion_elo: ranked[0]?.elo,
+  })
+  if (error) throw error
+  const resets = ranked.map(p =>
+    supabase.from('players').update({ elo: 1000, wins: 0, losses: 0 }).eq('id', p.id)
   )
+  await Promise.all(resets)
 }
 
-// ── Event detail view ─────────────────────────────────────
-function EventDetail({ event, players, onBack, onRefresh }) {
-  const toast = useToast()
-  const meId = localStorage.getItem(ME_KEY)
-  const fileRef = useRef()
-  const editFileRef = useRef()
-  const [randomTeams, setRandomTeams] = useState(null)
-  const [closing, setClosing] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
-  const [editForm, setEditForm] = useState({ name: event.name, type: event.type, date: event.date || '', description: event.description || '' })
-  const [editSaving, setEditSaving] = useState(false)
-  const [editUploading, setEditUploading] = useState(false)
-  const [deleting, setDeleting] = useState(false)
+// ── Events ────────────────────────────────────────────────
 
-  async function handleDelete() {
-    if (!confirm(`Supprimer définitivement "${event.name}" ?${event.status === 'closed' ? '\n\nAttention : les points distribués seront retirés.' : ''}`)) return
-    setDeleting(true)
-    try {
-      await deleteEvent(event, players)
-      toast('Évènement supprimé — points retirés !')
-      onBack()
-      onRefresh()
-    } catch (e) { toast('Erreur : ' + e.message, true) }
-    finally { setDeleting(false) }
+const EVENT_POINTS = {
+  'ACP 250':  [25, 15, 10],
+  'ACP 500':  [45, 35, 30],
+  'ACP 1000': [65, 55, 50],
+  'WST':      [100, 75, 50],
+}
+
+export { EVENT_POINTS }
+
+export async function getEvents() {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function createEvent({ name, type, description, photo_url, date }) {
+  const { data, error } = await supabase
+    .from('events')
+    .insert({ name, type, description: description || null, photo_url: photo_url || null, date: date || null, status: 'ongoing', participants: [], standings: [] })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function updateEventParticipants(eventId, participants) {
+  const { error } = await supabase
+    .from('events')
+    .update({ participants })
+    .eq('id', eventId)
+  if (error) throw error
+}
+
+export async function updateEvent(id, { name, type, description, date }) {
+  const { error } = await supabase
+    .from('events')
+    .update({ name, type, description: description || null, date: date || null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function uploadEventPhoto(eventId, file) {
+  const ext = file.name.split('.').pop()
+  const path = `event-${eventId}.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from('player-photos')
+    .upload(path, file, { upsert: true })
+  if (upErr) throw upErr
+  const { data } = supabase.storage.from('player-photos').getPublicUrl(path)
+  const photoUrl = data.publicUrl + '?t=' + Date.now()
+  const { error } = await supabase.from('events').update({ photo_url: photoUrl }).eq('id', eventId)
+  if (error) throw error
+  return photoUrl
+}
+
+export async function deleteEvent(event, players) {
+  if (event.status === 'closed' && event.standings && event.standings.length > 0) {
+    const points = EVENT_POINTS[event.type] || [25, 15, 10]
+    const updates = []
+    let i = 0
+    const standings = event.standings
+    while (i < Math.min(standings.length, 3)) {
+      const currentWins = standings[i]?.wins || 0
+      const tied = standings.filter((s, idx) => idx >= i && idx < 3 && (s?.wins || 0) === currentWins)
+      const startIdx = i
+      const endIdx = Math.min(startIdx + tied.length - 1, 2)
+      const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
+      const sharedPts = Math.round(totalPts / tied.length)
+      tied.forEach(s => {
+        const p = players.find(pl => pl.id === s.id)
+        if (p && sharedPts > 0) {
+          updates.push(supabase.from('players').update({ elo: Math.max(0, p.elo - sharedPts) }).eq('id', s.id))
+        }
+      })
+      i += tied.length
+    }
+    await Promise.all(updates)
   }
+  const { error } = await supabase.from('events').delete().eq('id', event.id)
+  if (error) throw error
+}
 
+export async function closeEvent(event, players) {
+  const { data: matches } = await supabase
+    .from('matches')
+    .select('*')
+    .eq('event_id', event.id)
+
+  const stats = {}
   const participants = event.participants || []
-  const isClosed = event.status === 'closed'
-  const points = EVENT_POINTS[event.type] || [25, 15, 10]
+  participants.forEach(id => { stats[id] = { wins: 0, losses: 0 } })
 
-  async function handleSaveEdit() {
-    setEditSaving(true)
-    try {
-      await updateEvent(event.id, editForm)
-      toast('Évènement mis à jour !')
-      setShowEdit(false)
-      onRefresh()
-    } catch (e) { toast('Erreur : ' + e.message, true) }
-    finally { setEditSaving(false) }
-  }
-
-  async function handleEditPhoto(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setEditUploading(true)
-    try {
-      await uploadEventPhoto(event.id, file)
-      toast('Photo mise à jour !')
-      onRefresh()
-    } catch (e) { toast('Erreur upload : ' + e.message, true) }
-    finally { setEditUploading(false) }
-  }
-
-  async function togglePresence(playerId) {
-    const updated = participants.includes(playerId)
-      ? participants.filter(id => id !== playerId)
-      : [...participants, playerId]
-    try {
-      await updateEventParticipants(event.id, updated)
-      onRefresh()
-    } catch (e) { toast('Erreur : ' + e.message, true) }
-  }
-
-  async function handleClose() {
-    if (!confirm(`Clôturer "${event.name}" et distribuer les points bonus ?`)) return
-    setClosing(true)
-    try {
-      await closeEvent(event, players)
-      toast('Évènement clôturé — points distribués !')
-      onRefresh()
-    } catch (e) { toast('Erreur : ' + e.message, true) }
-    finally { setClosing(false) }
-  }
-
-  async function handlePhotoUpload(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      await uploadEventPhoto(event.id, file)
-      toast('Photo mise à jour !')
-      onRefresh()
-    } catch (e) { toast('Erreur upload : ' + e.message, true) }
-    finally { setUploading(false) }
-  }
-
-  const color = TYPE_COLORS[event.type] || '#2E6CC7'
-  const participantPlayers = participants.map(id => players.find(p => p.id === id)).filter(Boolean)
-
-  return (
-    <>
-      {/* Edit modal */}
-      {showEdit && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(10,22,40,0.3)' }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 20 }}>
-              Modifier l'évènement
-            </div>
-
-            {/* Photo */}
-            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 64, height: 64, borderRadius: 10, background: '#0A1628', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
-                {event.photo_url && <img src={event.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-              </div>
-              <label style={{ border: '1.5px dashed #D8E4F5', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, color: '#2E6CC7', cursor: 'pointer', display: 'inline-block' }}>
-                {editUploading ? 'Upload...' : '📷 Changer la photo'}
-                <input ref={editFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleEditPhoto} />
-              </label>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label className="form-label">Nom</label>
-              <input className="input" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label className="form-label">Type</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {EVENT_TYPES.map(t => (
-                  <button key={t} onClick={() => setEditForm(f => ({ ...f, type: t }))} style={{
-                    padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
-                    border: `2px solid ${editForm.type === t ? TYPE_COLORS[t] : '#D8E4F5'}`,
-                    background: editForm.type === t ? TYPE_BG[t] : '#fff',
-                    fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, fontWeight: 700,
-                    color: editForm.type === t ? TYPE_COLORS[t] : '#7A94B8',
-                  }}>{t}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label className="form-label">Date</label>
-              <input className="input" type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} />
-            </div>
-
-            <div style={{ marginBottom: 20 }}>
-              <label className="form-label">Description</label>
-              <textarea className="input" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
-                rows={3} style={{ resize: 'vertical' }} />
-            </div>
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowEdit(false)}>Annuler</button>
-              <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleSaveEdit} disabled={!editForm.name.trim() || editSaving}>
-                {editSaving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-            </div>
-
-            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #F0F4FB' }}>
-              <button
-                className="btn"
-                onClick={handleDelete}
-                disabled={deleting}
-                style={{ width: '100%', background: '#FFF0F0', color: '#C0392B', border: '1.5px solid #F5C0C0', fontSize: 13 }}
-              >
-                {deleting ? 'Suppression...' : `🗑 Supprimer définitivement${event.status === 'closed' ? ' (retire les points)' : ''}`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#2E6CC7', fontWeight: 700, fontSize: 13, fontFamily: "'Barlow', sans-serif", marginBottom: 20, padding: '6px 0' }}>
-        <span style={{ fontSize: 18 }}>←</span> Retour aux évènements
-      </button>
-
-      {/* Header card */}
-      <div style={{ borderRadius: 16, overflow: 'hidden', marginBottom: 20, position: 'relative', background: '#0A1628', minHeight: 160 }}>
-        {event.photo_url && (
-          <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.4 }} />
-        )}
-        <div style={{ position: 'relative', zIndex: 1, padding: '24px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-            <div>
-              <span style={{ display: 'inline-block', background: color, color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, marginBottom: 8 }}>{event.type}</span>
-              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 32, color: '#fff', letterSpacing: 1 }}>{event.name}</div>
-              {event.date && (
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: '#fff', marginTop: 4 }}>
-                  {new Date(event.date).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
-              )}
-              {event.description && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{event.description}</div>}
-            </div>
-            {!isClosed && (
-              <button onClick={() => setShowEdit(true)} style={{
-                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 14px',
-                fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
-                background: 'rgba(255,255,255,0.1)', cursor: 'pointer', flexShrink: 0,
-                transition: 'all 0.15s',
-              }}>
-                ✏️ Modifier
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
-            {points.slice(0, 3).map((p, i) => (
-              <span key={i} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, color: '#fff' }}>
-                {['🥇', '🥈', '🥉'][i]} +{p} pts
-              </span>
-            ))}
-            <span style={{ background: isClosed ? 'rgba(91,191,122,0.3)' : 'rgba(255,200,0,0.2)', border: `1px solid ${isClosed ? '#5BBF7A' : '#F5C842'}`, borderRadius: 6, padding: '3px 10px', fontSize: 12, fontWeight: 700, color: isClosed ? '#5BBF7A' : '#F5C842' }}>
-              {isClosed ? '✓ Terminé' : '⏳ En cours'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Closed standings */}
-      {isClosed && event.standings && event.standings.length > 0 && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Classement final</div>
-          {event.standings.map((s, i) => {
-            const p = players.find(pl => pl.id === s.id)
-            return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #F0F4FB' }}>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: color, minWidth: 28 }}>#{i + 1}</div>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', border: '2px solid #2E6CC7', background: '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                  {p?.photo_url ? <img src={p.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{initials(p)}</span>}
-                </div>
-                <div style={{ flex: 1, fontWeight: 700, fontSize: 14, color: '#0A1628' }}>{formatName(p)}</div>
-                <div style={{ fontSize: 12, color: '#7A94B8' }}>{s.wins}V · {s.losses}D</div>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, color }}>+{points[i] || 0} pts</div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Participants */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-          Participants ({participants.length})
-        </div>
-        {players.filter(p => !p.is_guest).map(p => {
-          const present = participants.includes(p.id)
-          const isMe = p.id === meId
-          return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #F0F4FB' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', border: `2px solid ${present ? '#2E6CC7' : '#D8E4F5'}`, background: present ? '#1A3A6B' : '#F4F8FE', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                {p.photo_url ? <img src={p.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 13, color: present ? 'rgba(255,255,255,0.5)' : '#7A94B8' }}>{initials(p)}</span>}
-              </div>
-              <div style={{ flex: 1, fontWeight: 700, fontSize: 14, color: present ? '#0A1628' : '#7A94B8' }}>
-                {formatName(p)}
-                {isMe && <span style={{ fontSize: 10, background: '#1A8A4A', color: '#fff', borderRadius: 4, padding: '1px 5px', marginLeft: 6, fontWeight: 700 }}>Moi</span>}
-              </div>
-              {!isClosed && (
-                <button onClick={() => togglePresence(p.id)} style={{
-                  border: `1.5px solid ${present ? '#1A8A4A' : '#D8E4F5'}`,
-                  background: present ? '#F0FAF4' : '#fff',
-                  borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 700,
-                  color: present ? '#1A8A4A' : '#7A94B8', cursor: 'pointer', transition: 'all 0.15s',
-                }}>
-                  {present ? '✓ Présent' : '+ Rejoindre'}
-                </button>
-              )}
-              {isClosed && present && <span style={{ fontSize: 12, color: '#1A8A4A', fontWeight: 700 }}>✓</span>}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Équipes aléatoires */}
-      {!isClosed && participants.length >= 6 && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-            Équipes aléatoires
-          </div>
-          <button className="btn btn-primary" style={{ marginBottom: randomTeams ? 16 : 0 }} onClick={() => setRandomTeams(makeTeams(participants))}>
-            🎲 Générer les équipes
-          </button>
-          {randomTeams && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-              {randomTeams.map((team, i) => (
-                <div key={i} style={{ background: '#F4F8FE', borderRadius: 10, padding: '12px 14px', border: '1px solid #D8E4F5' }}>
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: color, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                    Équipe {i + 1} {team.length < 3 ? `(${team.length} joueurs)` : ''}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {team.map(id => {
-                      const p = players.find(pl => pl.id === id)
-                      return (
-                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #D8E4F5', borderRadius: 8, padding: '5px 10px' }}>
-                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#1A3A6B', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-                            {p?.photo_url ? <img src={p.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>{initials(p)}</span>}
-                          </div>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {participants.length < 6 && !isClosed && (
-        <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', marginBottom: 20 }}>
-          Il faut au moins 6 participants pour générer des équipes ({6 - participants.length} manquant{6 - participants.length > 1 ? 's' : ''})
-        </div>
-      )}
-
-      {/* Clôturer */}
-      {!isClosed && (
-        <button className="btn btn-full" onClick={handleClose} disabled={closing || participants.length < 2}
-          style={{ background: '#0A1628', color: '#fff', marginTop: 8 }}>
-          {closing ? 'Clôture en cours...' : '🏆 Clôturer et distribuer les points'}
-        </button>
-      )}
-    </>
-  )
-}
-
-// ── Main Evenements page ──────────────────────────────────
-export default function Evenements() {
-  const [events, setEvents] = useState(null)
-  const [players, setPlayers] = useState([])
-  const [showCreate, setShowCreate] = useState(false)
-  const [selected, setSelected] = useState(null)
-
-  const load = () => Promise.all([getEvents(), getPlayers()]).then(([e, p]) => {
-    setEvents(e)
-    setPlayers(p)
-    if (selected) setSelected(e.find(ev => ev.id === selected.id) || null)
+  ;(matches || []).forEach(m => {
+    const winners = m.winner === 'A' ? m.team_a : m.team_b
+    const losers = m.winner === 'A' ? m.team_b : m.team_a
+    ;(winners || []).forEach(id => { if (stats[id]) stats[id].wins++ })
+    ;(losers || []).forEach(id => { if (stats[id]) stats[id].losses++ })
   })
 
-  useEffect(() => { load() }, [])
+  const ranked = participants
+    .filter(id => players.find(p => p.id === id))
+    .sort((a, b) => (stats[b]?.wins || 0) - (stats[a]?.wins || 0))
 
-  if (events === null) return <div className="spinner" />
+  const points = EVENT_POINTS[event.type] || [25, 15, 10]
+  const updates = []
+  let i = 0
+  while (i < Math.min(ranked.length, 3)) {
+    const currentWins = stats[ranked[i]]?.wins || 0
+    const tied = ranked.filter((id, idx) => idx >= i && idx < 3 && (stats[id]?.wins || 0) === currentWins)
+    const startIdx = i
+    const endIdx = Math.min(startIdx + tied.length - 1, 2)
+    const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
+    const sharedPts = Math.round(totalPts / tied.length)
+    tied.forEach(id => {
+      const p = players.find(pl => pl.id === id)
+      if (p && sharedPts > 0) {
+        updates.push(supabase.from('players').update({ elo: p.elo + sharedPts }).eq('id', id))
+      }
+    })
+    i += tied.length
+  }
+  await Promise.all(updates)
 
-  if (selected) return (
-    <main className="page">
-      <EventDetail event={selected} players={players} onBack={() => setSelected(null)} onRefresh={load} />
-    </main>
-  )
+  const standings = ranked.map((id, idx) => ({
+    id, rank: idx + 1,
+    wins: stats[id]?.wins || 0,
+    losses: stats[id]?.losses || 0,
+  }))
 
-  const ongoing = events.filter(e => e.status === 'ongoing')
-  const closed = events.filter(e => e.status === 'closed')
-
-  return (
-    <main className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div className="page-title" style={{ marginBottom: 0 }}>Évènements</div>
-        <button onClick={() => setShowCreate(true)} style={{
-          width: 40, height: 40, borderRadius: '50%',
-          background: '#2E6CC7', color: '#fff', border: 'none',
-          fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 4px 12px rgba(46,108,199,0.4)', transition: 'all 0.15s', fontWeight: 300,
-        }}>+</button>
-      </div>
-
-      {events.length === 0 && (
-        <div className="empty">Aucun évènement. Clique sur "+" pour en créer un !</div>
-      )}
-
-      {ongoing.length > 0 && (
-        <>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>En cours</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-            {ongoing.map(ev => <EventCard key={ev.id} event={ev} players={players} onClick={() => setSelected(ev)} />)}
-          </div>
-        </>
-      )}
-
-      {closed.length > 0 && (
-        <>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>Terminés</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {closed.map(ev => <EventCard key={ev.id} event={ev} players={players} onClick={() => setSelected(ev)} />)}
-          </div>
-        </>
-      )}
-
-      {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={ev => { setShowCreate(false); load(); setSelected(ev) }} />}
-    </main>
-  )
-}
-
-function EventCard({ event, players, onClick }) {
-  const color = TYPE_COLORS[event.type] || '#2E6CC7'
-  const participants = event.participants || []
-  const isClosed = event.status === 'closed'
-
-  return (
-    <div onClick={onClick} style={{
-      borderRadius: 14, overflow: 'hidden', position: 'relative',
-      background: '#0A1628', minHeight: 90, cursor: 'pointer',
-      transition: 'transform 0.15s', border: `1px solid ${isClosed ? '#333' : color}`,
-    }}
-    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-    >
-      {event.photo_url && (
-        <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isClosed ? 0.2 : 0.35 }} />
-      )}
-      <div style={{ position: 'relative', zIndex: 1, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ background: color, color: '#fff', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{event.type}</span>
-            {isClosed && <span style={{ background: 'rgba(91,191,122,0.2)', color: '#5BBF7A', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>✓ Terminé</span>}
-          </div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#fff', letterSpacing: 0.5 }}>{event.name}</div>
-          {event.date && (
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#fff', marginTop: 2 }}>
-              {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </div>
-          )}
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{participants.length} participant{participants.length > 1 ? 's' : ''}</div>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          {(EVENT_POINTS[event.type] || []).slice(0, 3).map((p, i) => (
-            <span key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>{['🥇', '🥈', '🥉'][i]} +{p}</span>
-          ))}
-        </div>
-        <span style={{ fontSize: 20, color: 'rgba(255,255,255,0.3)' }}>›</span>
-      </div>
-    </div>
-  )
+  const { error } = await supabase.from('events').update({ status: 'closed', standings }).eq('id', event.id)
+  if (error) throw error
 }
