@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { getEvents, getPlayers, createEvent, updateEventParticipants, uploadEventPhoto, closeEvent, EVENT_POINTS } from '../lib/supabase'
+import { getEvents, getPlayers, createEvent, updateEvent, updateEventParticipants, uploadEventPhoto, closeEvent, deleteEvent, EVENT_POINTS } from '../lib/supabase'
 import { useToast } from '../App'
 
 const ME_KEY = 'sanglich_me_id'
@@ -128,13 +128,54 @@ function EventDetail({ event, players, onBack, onRefresh }) {
   const toast = useToast()
   const meId = localStorage.getItem(ME_KEY)
   const fileRef = useRef()
+  const editFileRef = useRef()
   const [randomTeams, setRandomTeams] = useState(null)
   const [closing, setClosing] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
+  const [editForm, setEditForm] = useState({ name: event.name, type: event.type, date: event.date || '', description: event.description || '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editUploading, setEditUploading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (!confirm(`Supprimer définitivement "${event.name}" ?${event.status === 'closed' ? '\n\nAttention : les points distribués seront retirés.' : ''}`)) return
+    setDeleting(true)
+    try {
+      await deleteEvent(event, players)
+      toast('Évènement supprimé — points retirés !')
+      onBack()
+      onRefresh()
+    } catch (e) { toast('Erreur : ' + e.message, true) }
+    finally { setDeleting(false) }
+  }
 
   const participants = event.participants || []
   const isClosed = event.status === 'closed'
   const points = EVENT_POINTS[event.type] || [25, 15, 10]
+
+  async function handleSaveEdit() {
+    setEditSaving(true)
+    try {
+      await updateEvent(event.id, editForm)
+      toast('Évènement mis à jour !')
+      setShowEdit(false)
+      onRefresh()
+    } catch (e) { toast('Erreur : ' + e.message, true) }
+    finally { setEditSaving(false) }
+  }
+
+  async function handleEditPhoto(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setEditUploading(true)
+    try {
+      await uploadEventPhoto(event.id, file)
+      toast('Photo mise à jour !')
+      onRefresh()
+    } catch (e) { toast('Erreur upload : ' + e.message, true) }
+    finally { setEditUploading(false) }
+  }
 
   async function togglePresence(playerId) {
     const updated = participants.includes(playerId)
@@ -174,6 +215,77 @@ function EventDetail({ event, players, onBack, onRefresh }) {
 
   return (
     <>
+      {/* Edit modal */}
+      {showEdit && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,22,40,0.6)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 20px 60px rgba(10,22,40,0.3)' }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 20 }}>
+              Modifier l'évènement
+            </div>
+
+            {/* Photo */}
+            <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 64, height: 64, borderRadius: 10, background: '#0A1628', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>
+                {event.photo_url && <img src={event.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+              </div>
+              <label style={{ border: '1.5px dashed #D8E4F5', borderRadius: 8, padding: '8px 14px', fontSize: 12, fontWeight: 600, color: '#2E6CC7', cursor: 'pointer', display: 'inline-block' }}>
+                {editUploading ? 'Upload...' : '📷 Changer la photo'}
+                <input ref={editFileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleEditPhoto} />
+              </label>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="form-label">Nom</label>
+              <input className="input" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="form-label">Type</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {EVENT_TYPES.map(t => (
+                  <button key={t} onClick={() => setEditForm(f => ({ ...f, type: t }))} style={{
+                    padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
+                    border: `2px solid ${editForm.type === t ? TYPE_COLORS[t] : '#D8E4F5'}`,
+                    background: editForm.type === t ? TYPE_BG[t] : '#fff',
+                    fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15, fontWeight: 700,
+                    color: editForm.type === t ? TYPE_COLORS[t] : '#7A94B8',
+                  }}>{t}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label className="form-label">Date</label>
+              <input className="input" type="date" value={editForm.date} onChange={e => setEditForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label className="form-label">Description</label>
+              <textarea className="input" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))}
+                rows={3} style={{ resize: 'vertical' }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowEdit(false)}>Annuler</button>
+              <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleSaveEdit} disabled={!editForm.name.trim() || editSaving}>
+                {editSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+            </div>
+
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #F0F4FB' }}>
+              <button
+                className="btn"
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{ width: '100%', background: '#FFF0F0', color: '#C0392B', border: '1.5px solid #F5C0C0', fontSize: 13 }}
+              >
+                {deleting ? 'Suppression...' : `🗑 Supprimer définitivement${event.status === 'closed' ? ' (retire les points)' : ''}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#2E6CC7', fontWeight: 700, fontSize: 13, fontFamily: "'Barlow', sans-serif", marginBottom: 20, padding: '6px 0' }}>
         <span style={{ fontSize: 18 }}>←</span> Retour aux évènements
       </button>
@@ -196,10 +308,14 @@ function EventDetail({ event, players, onBack, onRefresh }) {
               {event.description && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{event.description}</div>}
             </div>
             {!isClosed && (
-              <label style={{ border: '1.5px dashed rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', flexShrink: 0 }}>
-                {uploading ? '...' : '📷 Photo'}
-                <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
-              </label>
+              <button onClick={() => setShowEdit(true)} style={{
+                border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 14px',
+                fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.8)',
+                background: 'rgba(255,255,255,0.1)', cursor: 'pointer', flexShrink: 0,
+                transition: 'all 0.15s',
+              }}>
+                ✏️ Modifier
+              </button>
             )}
           </div>
           <div style={{ display: 'flex', gap: 6, marginTop: 14, flexWrap: 'wrap' }}>
