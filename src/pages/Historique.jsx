@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { getMatches, getPlayers } from '../lib/supabase'
+import { getMatches, getPlayers, deleteLastMatch } from '../lib/supabase'
+import { useToast } from '../App'
 
 function formatName(p) {
   if (!p) return '?'
@@ -106,7 +107,7 @@ const AVENGERS_STYLES = `
 `
 
 // ── Match row ─────────────────────────────────────────────
-function MatchRow({ match, players, highlightId }) {
+function MatchRow({ match, players, highlightId, isLast, onDelete }) {
   const getP = id => players.find(p => p.id === id)
   const winTeamIds = match.winner === 'A' ? match.team_a : match.team_b
   const loseTeamIds = match.winner === 'A' ? match.team_b : match.team_a
@@ -131,6 +132,20 @@ function MatchRow({ match, players, highlightId }) {
               {isAvengers && <span style={{ fontSize: 11, background: 'linear-gradient(90deg,#ff0080,#a855f7)', color: '#fff', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>⚡ Avengers</span>}
               {match.beer_bonus && <span style={{ fontSize: 11, background: '#F0FAF4', color: '#1A8A4A', border: '1px solid #C6EFCE', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>🍺 +10</span>}
               {match.has_guest && <span style={{ fontSize: 11, background: '#FFF8E6', color: '#856404', border: '1px solid #F5C842', borderRadius: 5, padding: '1px 7px', fontWeight: 700 }}>Invité</span>}
+              {isLast && (
+                <button
+                  onClick={() => onDelete(match)}
+                  style={{
+                    background: 'none', border: '1px solid #F5C0C0', borderRadius: 5,
+                    padding: '1px 8px', fontSize: 11, fontWeight: 700,
+                    color: '#C0392B', cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#FFF0F0' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none' }}
+                >
+                  🗑 Annuler
+                </button>
+              )}
             </div>
           </div>
 
@@ -183,16 +198,23 @@ function MatchRow({ match, players, highlightId }) {
 }
 
 // ── All matches view ──────────────────────────────────────
-function AllMatches({ matches, players, onBack }) {
+function AllMatches({ matches, players, onBack, onDelete }) {
   return (
     <>
       <BackButton onClick={onBack} label="Retour à l'historique" />
-      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 28, color: '#0A1628', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 20 }}>
+      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 28, color: '#0A1628', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
         Toutes les parties
       </div>
+      {matches.length > 0 && (
+        <div style={{ fontSize: 12, color: '#7A94B8', marginBottom: 16 }}>
+          Seul le dernier match peut être annulé (les points sont rétablis automatiquement).
+        </div>
+      )}
       {matches.length === 0
         ? <div className="empty">Aucun match enregistré.</div>
-        : matches.map(m => <MatchRow key={m.id} match={m} players={players} />)
+        : matches.map((m, i) => (
+            <MatchRow key={m.id} match={m} players={players} isLast={i === 0} onDelete={onDelete} />
+          ))
       }
     </>
   )
@@ -276,25 +298,37 @@ function PlayerPicker({ players, onSelect, onBack }) {
 
 // ── Main Historique page ──────────────────────────────────
 export default function Historique() {
+  const toast = useToast()
   const [matches, setMatches] = useState(null)
   const [players, setPlayers] = useState([])
-  // view: 'menu' | 'all' | 'player-pick' | 'player-history'
   const [view, setView] = useState('menu')
   const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => {
-    Promise.all([getMatches(), getPlayers()]).then(([m, p]) => {
-      setMatches(m)
-      setPlayers(p)
-    })
-  }, [])
+  const load = () => Promise.all([getMatches(), getPlayers()]).then(([m, p]) => {
+    setMatches(m)
+    setPlayers(p)
+  })
+
+  useEffect(() => { load() }, [])
+
+  async function handleDelete(match) {
+    if (!confirm('Annuler ce match et rétablir les points ELO ?')) return
+    setDeleting(true)
+    try {
+      await deleteLastMatch(players)
+      toast('Match annulé — points rétablis !')
+      load()
+    } catch (e) {
+      toast('Erreur : ' + e.message, true)
+    } finally { setDeleting(false) }
+  }
 
   if (matches === null) return <div className="spinner" />
 
-  // Sub-views
   if (view === 'all') return (
     <main className="page">
-      <AllMatches matches={matches} players={players} onBack={() => setView('menu')} />
+      <AllMatches matches={matches} players={players} onBack={() => setView('menu')} onDelete={handleDelete} />
     </main>
   )
 
@@ -310,24 +344,13 @@ export default function Historique() {
     </main>
   )
 
-  // Main menu
   return (
     <main className="page">
       <div className="page-title">Historique</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {[
-          {
-            id: 'all',
-            icon: '📋',
-            title: 'Toutes les parties',
-            sub: `${matches.length} match${matches.length > 1 ? 's' : ''} enregistré${matches.length > 1 ? 's' : ''}`,
-          },
-          {
-            id: 'player-pick',
-            icon: '👤',
-            title: 'Par joueur',
-            sub: 'Voir l\'historique et les stats d\'un joueur',
-          },
+          { id: 'all', icon: '📋', title: 'Toutes les parties', sub: `${matches.length} match${matches.length > 1 ? 's' : ''} enregistré${matches.length > 1 ? 's' : ''}` },
+          { id: 'player-pick', icon: '👤', title: 'Par joueur', sub: "Voir l'historique et les stats d'un joueur" },
         ].map(({ id, icon, title, sub }) => (
           <div key={id} onClick={() => setView(id)} style={{
             display: 'flex', alignItems: 'center', gap: 16,
