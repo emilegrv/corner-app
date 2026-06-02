@@ -540,9 +540,9 @@ function EventCard({ event, players, onClick }) {
     onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = isClosed ? '0 6px 20px rgba(0,0,0,0.4)' : `0 10px 32px ${color}66` }}
     onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = isClosed ? '0 2px 8px rgba(0,0,0,0.3)' : `0 6px 24px ${color}44` }}
     >
-      {/* Background photo (event photo for ongoing, faded for closed) */}
-      {event.photo_url && !isClosed && (
-        <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25 }} />
+      {/* Background photo (event photo for ongoing, and behind winner for closed) */}
+      {event.photo_url && (
+        <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isClosed ? 0.12 : 0.25 }} />
       )}
 
       {/* Color gradient overlay */}
@@ -551,33 +551,36 @@ function EventCard({ event, players, onClick }) {
         : `linear-gradient(120deg, ${color}33 0%, transparent 70%)`
       }} />
 
-      {/* Winner photo on the RIGHT — full height, fade to left */}
+      {/* Winner photo on the RIGHT — 35% width, fades into event photo */}
       {isClosed && singleWinner && winnerPlayer?.photo_url && (
         <>
+          {/* Winner photo */}
           <img
             src={winnerPlayer.photo_url}
-            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%', objectFit: 'cover', objectPosition: 'top' }}
+            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '35%', objectFit: 'cover', objectPosition: 'top' }}
           />
-          {/* Gradient fade from left over the photo */}
-          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '55%', background: 'linear-gradient(to right, #111827 0%, #111827 30%, rgba(17,24,39,0.6) 65%, transparent 100%)' }} />
-          {/* Name below photo */}
-          <div style={{ position: 'absolute', right: 0, bottom: 0, width: '45%', padding: '0 12px 12px', textAlign: 'center', zIndex: 2 }}>
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 16, color: '#F5C842', textShadow: '0 2px 8px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+          {/* Left fade: blends winner photo into event background */}
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '55%', background: 'linear-gradient(to right, #111827 0%, rgba(17,24,39,0.85) 25%, rgba(17,24,39,0.3) 60%, transparent 100%)' }} />
+          {/* Bottom fade on winner photo */}
+          <div style={{ position: 'absolute', right: 0, bottom: 0, width: '35%', height: '50%', background: 'linear-gradient(to top, #111827 0%, transparent 100%)' }} />
+          {/* Winner name — big, right side bottom */}
+          <div style={{ position: 'absolute', right: 0, bottom: 12, width: '35%', textAlign: 'center', zIndex: 3, padding: '0 8px' }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#F5C842', textShadow: '0 2px 10px rgba(0,0,0,0.95)', lineHeight: 1, letterSpacing: 0.5 }}>
               {winnerPlayer.first_name || winnerPlayer.name}
             </div>
-            <div style={{ fontSize: 14, marginTop: 2 }}>🥇</div>
+            <div style={{ fontSize: 16, marginTop: 2 }}>🥇</div>
           </div>
         </>
       )}
 
       {/* Multiple winners names on the right */}
       {isClosed && !singleWinner && winners.length > 0 && (
-        <div style={{ position: 'absolute', right: 16, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, zIndex: 2 }}>
-          <div style={{ fontSize: 16, marginBottom: 4 }}>🥇</div>
+        <div style={{ position: 'absolute', right: 16, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, zIndex: 2 }}>
+          <div style={{ fontSize: 18, marginBottom: 4 }}>🥇</div>
           {winners.map(w => {
             const wp = players?.find(p => p.id === w.id)
             return (
-              <div key={w.id} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: '#F5C842', textShadow: '0 2px 6px rgba(0,0,0,0.8)', whiteSpace: 'nowrap' }}>
+              <div key={w.id} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 24, color: '#F5C842', textShadow: '0 2px 8px rgba(0,0,0,0.9)', whiteSpace: 'nowrap' }}>
                 {wp?.first_name || wp?.name || '?'}
               </div>
             )
