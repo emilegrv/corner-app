@@ -384,11 +384,11 @@ function EventDetail({ event, players, onBack, onRefresh }) {
       {/* Classement live */}
       {tab === 'classement' && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-            {isClosed ? 'Classement final' : `Classement en direct (${eventMatches.length} match${eventMatches.length > 1 ? 's' : ''})`}
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+            {isClosed ? 'Classement final' : `Classement en direct · ${eventMatches.length} match${eventMatches.length > 1 ? 's' : ''}`}
           </div>
           {liveRanked.length === 0 ? (
-            <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', padding: '20px 0' }}>
+            <div style={{ fontSize: 14, color: '#7A94B8', textAlign: 'center', padding: '24px 0' }}>
               Aucun participant pour le moment
             </div>
           ) : (
@@ -398,30 +398,30 @@ function EventDetail({ event, players, onBack, onRefresh }) {
               const total = stats.wins + stats.losses
               const wr = total > 0 ? Math.round(100 * stats.wins / total) : 0
               const isTop3 = i < 3
+              const rowColor = i === 0 ? '#F5C842' : i === 1 ? '#AAA' : i === 2 ? '#C87941' : color
               return (
                 <div key={id} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 0', borderBottom: '1px solid #F0F4FB',
-                  background: i === 0 ? 'linear-gradient(90deg, rgba(245,200,66,0.05), transparent)' : 'none',
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 0', borderBottom: '1px solid #F0F4FB',
+                  background: i === 0 ? 'linear-gradient(90deg, rgba(245,200,66,0.07), transparent)' : 'none',
                 }}>
                   <div style={{
-                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20,
-                    color: i === 0 ? '#F5C842' : i === 1 ? '#888' : i === 2 ? '#C87941' : color,
-                    minWidth: 28, textAlign: 'center',
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 26,
+                    color: rowColor, minWidth: 36, textAlign: 'center',
                   }}>
                     {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
                   </div>
-                  <Avatar player={p} size={36} />
+                  <Avatar player={p} size={44} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</div>
-                    <div style={{ fontSize: 11, color: '#7A94B8', marginTop: 1 }}>{wr}% win rate</div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#0A1628', letterSpacing: 0.3 }}>{p?.first_name || p?.name || '?'}</div>
+                    <div style={{ fontSize: 12, color: '#7A94B8', marginTop: 1 }}>{wr}% win rate · {total} match{total > 1 ? 's' : ''}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#1A8A4A' }}>{stats.wins}V</span>
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#C0392B' }}>{stats.losses}D</span>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: '#1A8A4A' }}>{stats.wins}V</span>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: '#C0392B' }}>{stats.losses}D</span>
                   </div>
-                  {isTop3 && !isClosed && (
-                    <span style={{ fontSize: 11, fontWeight: 700, background: color, color: '#fff', borderRadius: 5, padding: '2px 7px' }}>
+                  {isTop3 && (
+                    <span style={{ fontSize: 13, fontWeight: 700, background: rowColor, color: i === 0 ? '#0A1628' : '#fff', borderRadius: 6, padding: '3px 10px', minWidth: 60, textAlign: 'center' }}>
                       +{points[i] || 0} pts
                     </span>
                   )}
@@ -525,34 +525,42 @@ function EventCard({ event, onClick }) {
 
   return (
     <div onClick={onClick} style={{
-      borderRadius: 14, overflow: 'hidden', position: 'relative',
-      background: '#0A1628', minHeight: 90, cursor: 'pointer',
-      transition: 'transform 0.15s', border: `1px solid ${isClosed ? '#333' : color}`,
+      borderRadius: 16, overflow: 'hidden', position: 'relative',
+      background: '#0A1628', minHeight: isClosed ? 100 : 140, cursor: 'pointer',
+      transition: 'transform 0.2s', border: `1.5px solid ${isClosed ? '#2A2A3A' : color}`,
+      boxShadow: isClosed ? 'none' : `0 4px 20px ${color}33`,
     }}
-    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
     onMouseLeave={e => e.currentTarget.style.transform = 'none'}
     >
-      {event.photo_url && <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isClosed ? 0.2 : 0.35 }} />}
-      <div style={{ position: 'relative', zIndex: 1, padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+      {event.photo_url && <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isClosed ? 0.15 : 0.4 }} />}
+      {/* Gradient overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${color}22 0%, transparent 60%)` }} />
+      <div style={{ position: 'relative', zIndex: 1, padding: isClosed ? '16px 20px' : '22px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ background: color, color: '#fff', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>{event.type}</span>
-            {isClosed && <span style={{ background: 'rgba(91,191,122,0.2)', color: '#5BBF7A', borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>Termine</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <span style={{ background: color, color: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 13, fontWeight: 700, letterSpacing: 0.5 }}>{event.type}</span>
+            {isClosed && <span style={{ background: 'rgba(91,191,122,0.2)', color: '#5BBF7A', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>✓ Terminé</span>}
+            {!isClosed && <span style={{ background: 'rgba(255,200,0,0.15)', color: '#F5C842', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>⏳ En cours</span>}
           </div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#fff', letterSpacing: 0.5 }}>{event.name}</div>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: isClosed ? 24 : 30, color: '#fff', letterSpacing: 1, lineHeight: 1.1 }}>{event.name}</div>
           {event.date && (
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 15, color: '#fff', marginTop: 2 }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: isClosed ? 14 : 17, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
               {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
             </div>
           )}
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{participants.length} participant{participants.length > 1 ? 's' : ''}</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', marginTop: 6, fontWeight: 500 }}>
+            {participants.length} participant{participants.length > 1 ? 's' : ''}
+          </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
           {(EVENT_POINTS[event.type] || []).slice(0, 3).map((p, i) => (
-            <span key={i} style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>{['🥇', '🥈', '🥉'][i]} +{p}</span>
+            <span key={i} style={{ fontSize: 13, color: i === 0 ? '#F5C842' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
+              {['🥇', '🥈', '🥉'][i]} <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15 }}>+{p}</span>
+            </span>
           ))}
         </div>
-        <span style={{ fontSize: 20, color: 'rgba(255,255,255,0.3)' }}>›</span>
+        <span style={{ fontSize: 24, color: 'rgba(255,255,255,0.25)', marginLeft: 4 }}>›</span>
       </div>
     </div>
   )
