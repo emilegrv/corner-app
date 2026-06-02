@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
-import { getPlayers, submitMatch } from '../lib/supabase'
+import { getPlayers, submitMatch, getEvents } from '../lib/supabase'
 import { useToast } from '../App'
 
 function formatName(p) {
@@ -195,6 +195,8 @@ function ScoreButtons({ value, onChange, otherScore, color }) {
 export default function Match() {
   const toast = useToast()
   const [players, setPlayers] = useState([])
+  const [events, setEvents] = useState([])
+  const [selectedEventId, setSelectedEventId] = useState('')
   const [teamA, setTeamA] = useState(['', '', ''])
   const [teamB, setTeamB] = useState(['', '', ''])
   const [guestNamesA, setGuestNamesA] = useState(['', '', ''])
@@ -203,7 +205,10 @@ export default function Match() {
   const [scoreB, setScoreB] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  useEffect(() => { getPlayers().then(setPlayers) }, [])
+  useEffect(() => {
+    getPlayers().then(setPlayers)
+    getEvents().then(evs => setEvents(evs.filter(e => e.status === 'ongoing')))
+  }, [])
 
   const setA = (i, v) => setTeamA(t => { const n = [...t]; n[i] = v; return n })
   const setB = (i, v) => setTeamB(t => { const n = [...t]; n[i] = v; return n })
@@ -230,7 +235,7 @@ export default function Match() {
   async function handleSubmit() {
     setLoading(true)
     try {
-      const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB })
+      const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB, eventId: selectedEventId || null })
       toast(hasGuest ? 'Match enregistré (joueur extérieur — ELO non modifié)' : 'Match enregistré !')
       setTeamA(['', '', ''])
       setTeamB(['', '', ''])
@@ -238,6 +243,7 @@ export default function Match() {
       setGuestNamesB(['', '', ''])
       setScoreA(null)
       setScoreB(null)
+      setSelectedEventId('')
       getPlayers().then(setPlayers)
     } catch (e) {
       toast('Erreur : ' + e.message, true)
@@ -366,6 +372,52 @@ export default function Match() {
           </div>
         </div>
       </div>
+
+      {/* Sélection évènement */}
+      {events.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+            Évènement (optionnel)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div
+              onClick={() => setSelectedEventId('')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `1.5px solid ${selectedEventId === '' ? '#2E6CC7' : '#D8E4F5'}`,
+                background: selectedEventId === '' ? '#EBF2FC' : '#F4F8FE',
+                transition: 'all 0.15s',
+              }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: selectedEventId === '' ? '#2E6CC7' : '#D8E4F5', flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: selectedEventId === '' ? '#2E6CC7' : '#7A94B8' }}>Aucun évènement</span>
+            </div>
+            {events.map(ev => {
+              const color = { 'ACP 250': '#2E6CC7', 'ACP 500': '#C87941', 'ACP 1000': '#1A8A4A', 'WST': '#7C3AED' }[ev.type] || '#2E6CC7'
+              const selected = selectedEventId === ev.id
+              return (
+                <div key={ev.id} onClick={() => setSelectedEventId(ev.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                  border: `1.5px solid ${selected ? color : '#D8E4F5'}`,
+                  background: selected ? `${color}12` : '#fff',
+                  transition: 'all 0.15s',
+                }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: selected ? color : '#D8E4F5', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: selected ? color : '#0A1628' }}>{ev.name}</div>
+                    {ev.date && <div style={{ fontSize: 11, color: '#7A94B8', marginTop: 1 }}>
+                      {new Date(ev.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </div>}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: color, color: '#fff', borderRadius: 5, padding: '2px 7px' }}>{ev.type}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Score */}
       {allSelected && allUnique && (
