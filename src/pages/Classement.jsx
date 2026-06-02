@@ -114,14 +114,14 @@ function PlayerCard({ player, rank, elevated }) {
         <span style={{
           position: 'absolute', top: 10, left: 10,
           fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 900, fontSize: 18,
-          borderRadius: 8, padding: '5px 11px',
+          fontWeight: 900, fontSize: 24,
+          borderRadius: 8, padding: '5px 13px',
           lineHeight: 1.2, zIndex: 2,
           background: 'linear-gradient(90deg, #B8860B, #FFD700, #FFF8DC, #FFD700, #B8860B)',
           backgroundSize: '200% auto',
           animation: 'shinyGold 2s linear infinite',
           color: '#0A1628',
-          boxShadow: '0 0 12px rgba(255,215,0,0.6), 0 0 4px rgba(255,215,0,0.4)',
+          boxShadow: '0 0 14px rgba(255,215,0,0.7), 0 0 5px rgba(255,215,0,0.4)',
         }}>
           #1
         </span>
@@ -130,8 +130,8 @@ function PlayerCard({ player, rank, elevated }) {
           position: 'absolute', top: 10, left: 10,
           background: badge.bg, color: badge.color,
           fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 900, fontSize: 14,
-          borderRadius: 7, padding: '3px 8px',
+          fontWeight: 900, fontSize: 20,
+          borderRadius: 7, padding: '4px 10px',
           lineHeight: 1.2, zIndex: 2,
         }}>
           #{rank}
@@ -164,16 +164,7 @@ function PlayerRow({ player, rank }) {
     onMouseLeave={e => e.currentTarget.style.background = rank === 4 ? 'linear-gradient(90deg, rgba(245,200,66,0.06), transparent)' : '#fff'}
     >
       {rank === 4 ? (
-        <div style={{
-          fontFamily: "'Barlow Condensed', sans-serif",
-          fontWeight: 900, fontSize: 28,
-          background: 'linear-gradient(90deg, #B8860B, #FFD700, #FFF8DC, #FFD700, #B8860B)',
-          backgroundSize: '200% auto',
-          WebkitBackgroundClip: 'text', backgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          animation: 'shinyGold 2s linear infinite',
-          minWidth: 40,
-        }}>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 26, color: '#2E6CC7', minWidth: 40 }}>
           #{rank}
         </div>
       ) : (
