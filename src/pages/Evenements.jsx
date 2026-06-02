@@ -523,84 +523,104 @@ function EventCard({ event, players, onClick }) {
   const participants = event.participants || []
   const isClosed = event.status === 'closed'
 
+  const topWins = event.standings?.[0]?.wins || 0
+  const winners = (event.standings || []).filter(s => (s.wins || 0) === topWins)
+  const singleWinner = winners.length === 1
+  const winnerPlayer = singleWinner ? players?.find(p => p.id === winners[0]?.id) : null
+
   return (
     <div onClick={onClick} style={{
-      borderRadius: 16, overflow: 'hidden', position: 'relative',
-      background: '#0A1628', minHeight: isClosed ? 120 : 140, cursor: 'pointer',
-      transition: 'transform 0.2s', border: `1.5px solid ${isClosed ? '#2A2A3A' : color}`,
-      boxShadow: isClosed ? 'none' : `0 4px 20px ${color}33`,
+      borderRadius: 18, overflow: 'hidden', position: 'relative',
+      background: isClosed ? '#111827' : '#0A1628',
+      minHeight: isClosed ? 130 : 150, cursor: 'pointer',
+      transition: 'transform 0.2s, box-shadow 0.2s',
+      border: isClosed ? '1.5px solid #1E2A3A' : `1.5px solid ${color}`,
+      boxShadow: isClosed ? '0 2px 8px rgba(0,0,0,0.3)' : `0 6px 24px ${color}44`,
     }}
-    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
-    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = isClosed ? '0 6px 20px rgba(0,0,0,0.4)' : `0 10px 32px ${color}66` }}
+    onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = isClosed ? '0 2px 8px rgba(0,0,0,0.3)' : `0 6px 24px ${color}44` }}
     >
-      {event.photo_url && <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: isClosed ? 0.15 : 0.4 }} />}
-      <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(135deg, ${color}22 0%, transparent 60%)` }} />
+      {/* Background photo (event photo for ongoing, faded for closed) */}
+      {event.photo_url && !isClosed && (
+        <img src={event.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: 0.25 }} />
+      )}
 
-      {/* Vainqueur(s) à gauche si clôturé */}
-      {isClosed && event.standings && event.standings.length > 0 && (() => {
-        const topWins = event.standings[0]?.wins || 0
-        const winners = event.standings.filter(s => (s.wins || 0) === topWins)
-        const singleWinner = winners.length === 1
-        const winnerPlayer = players?.find(p => p.id === winners[0]?.id)
+      {/* Color gradient overlay */}
+      <div style={{ position: 'absolute', inset: 0, background: isClosed
+        ? 'linear-gradient(135deg, #1E2A3A 0%, #111827 100%)'
+        : `linear-gradient(120deg, ${color}33 0%, transparent 70%)`
+      }} />
 
-        return (
-          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: singleWinner ? 90 : 'auto', maxWidth: singleWinner ? 90 : '55%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden' }}>
-            {singleWinner && winnerPlayer?.photo_url ? (
-              <>
-                <img src={winnerPlayer.photo_url} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to right, transparent 50%, #0A1628 100%)' }} />
-                <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(10,22,40,0.85) 0%, transparent 50%)' }} />
-                <div style={{ position: 'relative', zIndex: 2, padding: '0 8px 10px', textAlign: 'center', width: '100%' }}>
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 14, color: '#fff', lineHeight: 1.1, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                    {winnerPlayer.first_name || winnerPlayer.name}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#F5C842', fontWeight: 700 }}>🥇</div>
-                </div>
-              </>
-            ) : (
-              <div style={{ position: 'relative', zIndex: 2, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {winners.map((w, i) => {
-                  const wp = players?.find(p => p.id === w.id)
-                  return (
-                    <div key={w.id} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 18, color: '#F5C842', lineHeight: 1.1, textShadow: '0 1px 4px rgba(0,0,0,0.8)', whiteSpace: 'nowrap' }}>
-                      {wp?.first_name || wp?.name || '?'}
-                    </div>
-                  )
-                })}
-                <div style={{ fontSize: 11, color: '#F5C842', fontWeight: 700, marginTop: 2 }}>🥇</div>
-              </div>
-            )}
-          </div>
-        )
-      })()}
-
-      <div style={{ position: 'relative', zIndex: 1, padding: isClosed ? '16px 20px 16px' : '22px 20px', paddingLeft: isClosed && event.standings?.length > 0 ? (event.standings.filter(s => (s.wins||0) === (event.standings[0]?.wins||0)).length === 1 ? 100 : '40%') : 20, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <span style={{ background: color, color: '#fff', borderRadius: 6, padding: '4px 12px', fontSize: 13, fontWeight: 700, letterSpacing: 0.5 }}>{event.type}</span>
-            {isClosed && <span style={{ background: 'rgba(91,191,122,0.2)', color: '#5BBF7A', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>✓ Terminé</span>}
-            {!isClosed && <span style={{ background: 'rgba(255,200,0,0.15)', color: '#F5C842', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>⏳ En cours</span>}
-          </div>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: isClosed ? 22 : 30, color: '#fff', letterSpacing: 1, lineHeight: 1.1 }}>{event.name}</div>
-          {event.date && (
-            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: isClosed ? 13 : 17, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-              {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+      {/* Winner photo on the RIGHT — full height, fade to left */}
+      {isClosed && singleWinner && winnerPlayer?.photo_url && (
+        <>
+          <img
+            src={winnerPlayer.photo_url}
+            style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '45%', objectFit: 'cover', objectPosition: 'top' }}
+          />
+          {/* Gradient fade from left over the photo */}
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '55%', background: 'linear-gradient(to right, #111827 0%, #111827 30%, rgba(17,24,39,0.6) 65%, transparent 100%)' }} />
+          {/* Name below photo */}
+          <div style={{ position: 'absolute', right: 0, bottom: 0, width: '45%', padding: '0 12px 12px', textAlign: 'center', zIndex: 2 }}>
+            <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 16, color: '#F5C842', textShadow: '0 2px 8px rgba(0,0,0,0.9)', lineHeight: 1 }}>
+              {winnerPlayer.first_name || winnerPlayer.name}
             </div>
-          )}
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 6, fontWeight: 500 }}>
-            {participants.length} participant{participants.length > 1 ? 's' : ''}
+            <div style={{ fontSize: 14, marginTop: 2 }}>🥇</div>
           </div>
+        </>
+      )}
+
+      {/* Multiple winners names on the right */}
+      {isClosed && !singleWinner && winners.length > 0 && (
+        <div style={{ position: 'absolute', right: 16, top: 0, bottom: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2, zIndex: 2 }}>
+          <div style={{ fontSize: 16, marginBottom: 4 }}>🥇</div>
+          {winners.map(w => {
+            const wp = players?.find(p => p.id === w.id)
+            return (
+              <div key={w.id} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: '#F5C842', textShadow: '0 2px 6px rgba(0,0,0,0.8)', whiteSpace: 'nowrap' }}>
+                {wp?.first_name || wp?.name || '?'}
+              </div>
+            )
+          })}
         </div>
-        {!isClosed && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
-            {(EVENT_POINTS[event.type] || []).slice(0, 3).map((p, i) => (
-              <span key={i} style={{ fontSize: 13, color: i === 0 ? '#F5C842' : 'rgba(255,255,255,0.5)', fontWeight: 700 }}>
-                {['🥇', '🥈', '🥉'][i]} <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 15 }}>+{p}</span>
-              </span>
-            ))}
+      )}
+
+      {/* Main content */}
+      <div style={{ position: 'relative', zIndex: 1, padding: '20px 22px', paddingRight: isClosed ? (singleWinner && winnerPlayer?.photo_url ? '50%' : winners.length > 0 ? '45%' : 22) : 22 }}>
+        {/* Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ background: color, color: '#fff', borderRadius: 6, padding: '4px 14px', fontSize: 14, fontWeight: 700, letterSpacing: 0.5 }}>{event.type}</span>
+          {isClosed
+            ? <span style={{ background: 'rgba(91,191,122,0.15)', color: '#5BBF7A', border: '1px solid rgba(91,191,122,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>✓ Terminé</span>
+            : <span style={{ background: 'rgba(245,200,66,0.12)', color: '#F5C842', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>⏳ En cours</span>
+          }
+        </div>
+
+        {/* Name */}
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: isClosed ? 24 : 32, color: '#fff', letterSpacing: 1, lineHeight: 1, marginBottom: 6 }}>{event.name}</div>
+
+        {/* Date */}
+        {event.date && (
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: isClosed ? 14 : 18, color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>
+            {new Date(event.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </div>
         )}
-        <span style={{ fontSize: 24, color: 'rgba(255,255,255,0.25)', marginLeft: 4 }}>›</span>
+
+        {/* Participants + points */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
+            {participants.length} participant{participants.length > 1 ? 's' : ''}
+          </span>
+          {!isClosed && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(EVENT_POINTS[event.type] || []).slice(0, 3).map((p, i) => (
+                <span key={i} style={{ fontSize: 12, color: i === 0 ? '#F5C842' : 'rgba(255,255,255,0.4)', fontWeight: 700, fontFamily: "'Barlow Condensed', sans-serif" }}>
+                  {['🥇', '🥈', '🥉'][i]}+{p}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -634,33 +654,47 @@ export default function Evenements() {
 
   return (
     <main className="page">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-        <div className="page-title" style={{ marginBottom: 0 }}>Evenements</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+        <div className="page-title" style={{ marginBottom: 0 }}>Évènements</div>
         <button onClick={() => setShowCreate(true)} style={{
-          width: 40, height: 40, borderRadius: '50%', background: '#2E6CC7', color: '#fff',
-          border: 'none', fontSize: 24, cursor: 'pointer', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', boxShadow: '0 4px 12px rgba(46,108,199,0.4)',
-        }}>+</button>
+          width: 44, height: 44, borderRadius: '50%', background: '#2E6CC7', color: '#fff',
+          border: 'none', fontSize: 26, cursor: 'pointer', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', boxShadow: '0 4px 16px rgba(46,108,199,0.5)',
+          transition: 'transform 0.15s',
+        }}
+        onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+        >+</button>
       </div>
 
-      {events.length === 0 && <div className="empty">Aucun evenement. Clique sur "+" pour commencer !</div>}
+      {events.length === 0 && <div className="empty">Aucun évènement. Clique sur "+" pour commencer !</div>}
 
+      {/* En cours */}
       {ongoing.length > 0 && (
-        <>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>En cours</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+        <div style={{ marginBottom: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 4, height: 20, borderRadius: 2, background: '#2E6CC7' }} />
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 18, color: '#2E6CC7', textTransform: 'uppercase', letterSpacing: 2 }}>En cours</span>
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, color: '#2E6CC7', background: '#EBF2FC', borderRadius: 20, padding: '2px 10px' }}>{ongoing.length}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {ongoing.map(ev => <EventCard key={ev.id} event={ev} players={players} onClick={() => setSelected(ev)} />)}
           </div>
-        </>
+        </div>
       )}
 
+      {/* Terminés */}
       {closed.length > 0 && (
-        <>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 10 }}>Termines</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 4, height: 20, borderRadius: 2, background: '#4A5568' }} />
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 18, color: '#4A5568', textTransform: 'uppercase', letterSpacing: 2 }}>Terminés</span>
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, color: '#6B7280', background: '#F3F4F6', borderRadius: 20, padding: '2px 10px' }}>{closed.length}</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: 0.85 }}>
             {closed.map(ev => <EventCard key={ev.id} event={ev} players={players} onClick={() => setSelected(ev)} />)}
           </div>
-        </>
+        </div>
       )}
 
       {showCreate && <CreateModal onClose={() => setShowCreate(false)} onCreated={ev => { setShowCreate(false); load(); setSelected(ev) }} />}
