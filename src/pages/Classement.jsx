@@ -110,7 +110,22 @@ function PlayerCard({ player, rank, elevated }) {
         </div>
       </div>
 
-      {badge && (
+      {badge && rank === 1 ? (
+        <span style={{
+          position: 'absolute', top: 10, left: 10,
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 900, fontSize: 18,
+          borderRadius: 8, padding: '5px 11px',
+          lineHeight: 1.2, zIndex: 2,
+          background: 'linear-gradient(90deg, #B8860B, #FFD700, #FFF8DC, #FFD700, #B8860B)',
+          backgroundSize: '200% auto',
+          animation: 'shinyGold 2s linear infinite',
+          color: '#0A1628',
+          boxShadow: '0 0 12px rgba(255,215,0,0.6), 0 0 4px rgba(255,215,0,0.4)',
+        }}>
+          #1
+        </span>
+      ) : badge ? (
         <span style={{
           position: 'absolute', top: 10, left: 10,
           background: badge.bg, color: badge.color,
@@ -121,7 +136,7 @@ function PlayerCard({ player, rank, elevated }) {
         }}>
           #{rank}
         </span>
-      )}
+      ) : null}
       <span style={{
         position: 'absolute', top: 10, right: 10,
         fontSize: 11, fontWeight: 700,
@@ -138,39 +153,56 @@ function PlayerCard({ player, rank, elevated }) {
 function PlayerRow({ player, rank }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: '#fff', borderRadius: 10,
-      padding: '10px 16px', border: '1px solid #D8E4F5',
+      display: 'flex', alignItems: 'center', gap: 14,
+      background: rank === 4 ? 'linear-gradient(90deg, rgba(245,200,66,0.06), transparent)' : '#fff',
+      borderRadius: 12,
+      padding: '13px 18px',
+      border: rank === 4 ? '1px solid rgba(245,200,66,0.25)' : '1px solid #D8E4F5',
       transition: 'background 0.1s',
     }}
-    onMouseEnter={e => e.currentTarget.style.background = '#F4F8FE'}
-    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+    onMouseEnter={e => e.currentTarget.style.background = rank === 4 ? 'linear-gradient(90deg, rgba(245,200,66,0.1), transparent)' : '#F4F8FE'}
+    onMouseLeave={e => e.currentTarget.style.background = rank === 4 ? 'linear-gradient(90deg, rgba(245,200,66,0.06), transparent)' : '#fff'}
     >
-      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#2E6CC7', minWidth: 32 }}>
-        #{rank}
-      </div>
+      {rank === 4 ? (
+        <div style={{
+          fontFamily: "'Barlow Condensed', sans-serif",
+          fontWeight: 900, fontSize: 28,
+          background: 'linear-gradient(90deg, #B8860B, #FFD700, #FFF8DC, #FFD700, #B8860B)',
+          backgroundSize: '200% auto',
+          WebkitBackgroundClip: 'text', backgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          animation: 'shinyGold 2s linear infinite',
+          minWidth: 40,
+        }}>
+          #{rank}
+        </div>
+      ) : (
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 26, color: '#2E6CC7', minWidth: 40 }}>
+          #{rank}
+        </div>
+      )}
       <div style={{
-        width: 40, height: 40, borderRadius: '50%',
+        width: 46, height: 46, borderRadius: '50%',
         background: '#1A3A6B', border: '2px solid #2E6CC7',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         overflow: 'hidden', flexShrink: 0,
       }}>
         {player.photo_url
           ? <img src={player.photo_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 14, color: 'rgba(255,255,255,0.5)' }}>{initials(player)}</span>
+          : <span style={{ fontFamily: "'Barlow Condensed'", fontWeight: 700, fontSize: 16, color: 'rgba(255,255,255,0.5)' }}>{initials(player)}</span>
         }
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 14, color: '#0A1628' }}>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 18, color: '#0A1628', lineHeight: 1 }}>
           {player.first_name || player.name}
-          {player.nickname && <span style={{ color: '#2E6CC7', fontStyle: 'italic', fontWeight: 400 }}> "{player.nickname}"</span>}
+          {player.nickname && <span style={{ color: '#2E6CC7', fontStyle: 'italic', fontWeight: 600 }}> "{player.nickname}"</span>}
           {player.last_name && ` ${player.last_name}`}
         </div>
-        <div style={{ fontSize: 11, color: '#7A94B8', marginTop: 1 }}>
+        <div style={{ fontSize: 12, color: '#7A94B8', marginTop: 3 }}>
           {player.wins || 0}V · {player.losses || 0}D · {winRate(player)}%
         </div>
       </div>
-      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#2E6CC7' }}>
+      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 22, fontWeight: 900, color: '#2E6CC7' }}>
         {(player.elo || 1000).toLocaleString('fr-FR')} pts
       </div>
     </div>
@@ -199,6 +231,12 @@ export default function Classement() {
 
   return (
     <main className="page">
+      <style>{`
+        @keyframes shinyGold {
+          0%   { background-position: -200% center; }
+          100% { background-position: 200% center; }
+        }
+      `}</style>
       <div className="page-title">Classement</div>
 
       {top3.length > 0 && (
