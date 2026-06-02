@@ -113,7 +113,7 @@ export async function getSeasons() {
 const K = 40
 const BEER_BONUS = 10
 
-export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players }) {
+export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players, scoreA, scoreB, eventId }) {
   const allIds = [...teamA, ...teamB]
   const hasGuest = allIds.some(id => players.find(p => p.id === id)?.is_guest) || allIds.includes('__guest__')
 
@@ -138,6 +138,7 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
     beer_bonus: beerBonus,
     has_guest: hasGuest,
     delta_a: deltaA, delta_b: deltaB,
+    event_id: eventId || null,
   })
   if (matchError) throw matchError
 
