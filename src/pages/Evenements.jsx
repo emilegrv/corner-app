@@ -256,11 +256,39 @@ function EventDetail({ event, players, onBack, onRefresh }) {
   const [randomTeams, setRandomTeams] = useState(null)
   const [closing, setClosing] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [tab, setTab] = useState('classement')
+  const [eventMatches, setEventMatches] = useState([])
 
   const participants = event.participants || []
   const isClosed = event.status === 'closed'
   const points = EVENT_POINTS[event.type] || [25, 15, 10]
   const color = TYPE_COLORS[event.type] || '#2E6CC7'
+
+  useEffect(() => {
+    // Charge les matchs de cet évènement
+    import('../lib/supabase').then(({ supabase }) => {
+      supabase.from('matches').select('*').eq('event_id', event.id).then(({ data }) => {
+        setEventMatches(data || [])
+      })
+    })
+  }, [event.id])
+
+  // Calcule V/D en live pour chaque participant
+  const liveStats = {}
+  participants.forEach(id => { liveStats[id] = { wins: 0, losses: 0 } })
+  eventMatches.forEach(m => {
+    const winners = m.winner === 'A' ? m.team_a : m.team_b
+    const losers = m.winner === 'A' ? m.team_b : m.team_a
+    ;(winners || []).forEach(id => { if (liveStats[id]) liveStats[id].wins++ })
+    ;(losers || []).forEach(id => { if (liveStats[id]) liveStats[id].losses++ })
+  })
+  const liveRanked = [...participants]
+    .filter(id => players.find(p => p.id === id))
+    .sort((a, b) => {
+      const diff = (liveStats[b]?.wins || 0) - (liveStats[a]?.wins || 0)
+      if (diff !== 0) return diff
+      return (liveStats[b]?.losses || 0) - (liveStats[a]?.losses || 0)
+    })
 
   async function togglePresence(playerId) {
     const updated = participants.includes(playerId)
@@ -335,26 +363,77 @@ function EventDetail({ event, players, onBack, onRefresh }) {
         </div>
       </div>
 
-      {/* Classement final si clos */}
-      {isClosed && event.standings && event.standings.length > 0 && (
+      {/* Onglets */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: '#F4F8FE', borderRadius: 10, padding: 4 }}>
+        {[
+          { id: 'classement', label: 'Classement' },
+          { id: 'participants', label: 'Participants' },
+          { id: 'equipes', label: 'Equipes' },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={{
+            flex: 1, padding: '8px 4px', borderRadius: 8, border: 'none', cursor: 'pointer',
+            background: tab === t.id ? '#fff' : 'transparent',
+            boxShadow: tab === t.id ? '0 1px 4px rgba(10,22,40,0.1)' : 'none',
+            fontFamily: "'Barlow', sans-serif", fontSize: 12, fontWeight: 700,
+            color: tab === t.id ? '#0A1628' : '#7A94B8',
+            transition: 'all 0.15s',
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* Classement live */}
+      {tab === 'classement' && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>Classement final</div>
-          {event.standings.map((s, i) => {
-            const p = players.find(pl => pl.id === s.id)
-            return (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #F0F4FB' }}>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color, minWidth: 28 }}>#{i + 1}</div>
-                <Avatar player={p} size={36} />
-                <div style={{ flex: 1, fontWeight: 700, fontSize: 14, color: '#0A1628' }}>{formatName(p)}</div>
-                <div style={{ fontSize: 12, color: '#7A94B8' }}>{s.wins}V · {s.losses}D</div>
-                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 16, fontWeight: 700, color }}>+{points[i] || 0} pts</div>
-              </div>
-            )
-          })}
+          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
+            {isClosed ? 'Classement final' : `Classement en direct (${eventMatches.length} match${eventMatches.length > 1 ? 's' : ''})`}
+          </div>
+          {liveRanked.length === 0 ? (
+            <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', padding: '20px 0' }}>
+              Aucun participant pour le moment
+            </div>
+          ) : (
+            liveRanked.map((id, i) => {
+              const p = players.find(pl => pl.id === id)
+              const stats = liveStats[id] || { wins: 0, losses: 0 }
+              const total = stats.wins + stats.losses
+              const wr = total > 0 ? Math.round(100 * stats.wins / total) : 0
+              const isTop3 = i < 3
+              return (
+                <div key={id} style={{
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 0', borderBottom: '1px solid #F0F4FB',
+                  background: i === 0 ? 'linear-gradient(90deg, rgba(245,200,66,0.05), transparent)' : 'none',
+                }}>
+                  <div style={{
+                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20,
+                    color: i === 0 ? '#F5C842' : i === 1 ? '#888' : i === 2 ? '#C87941' : color,
+                    minWidth: 28, textAlign: 'center',
+                  }}>
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  </div>
+                  <Avatar player={p} size={36} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</div>
+                    <div style={{ fontSize: 11, color: '#7A94B8', marginTop: 1 }}>{wr}% win rate</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#1A8A4A' }}>{stats.wins}V</span>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 18, fontWeight: 700, color: '#C0392B' }}>{stats.losses}D</span>
+                  </div>
+                  {isTop3 && !isClosed && (
+                    <span style={{ fontSize: 11, fontWeight: 700, background: color, color: '#fff', borderRadius: 5, padding: '2px 7px' }}>
+                      +{points[i] || 0} pts
+                    </span>
+                  )}
+                </div>
+              )
+            })
+          )}
         </div>
       )}
 
       {/* Participants */}
+      {tab === 'participants' && (
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
           Participants ({participants.length})
@@ -384,45 +463,48 @@ function EventDetail({ event, players, onBack, onRefresh }) {
           )
         })}
       </div>
-
-      {/* Equipes aleatoires */}
-      {!isClosed && participants.length >= 6 && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-            Equipes aleatoires
-          </div>
-          <button className="btn btn-primary" onClick={() => setRandomTeams(makeTeams(participants))}>
-            Generer les equipes
-          </button>
-          {randomTeams && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-              {randomTeams.map((team, i) => (
-                <div key={i} style={{ background: '#F4F8FE', borderRadius: 10, padding: '12px 14px', border: '1px solid #D8E4F5' }}>
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                    Equipe {i + 1}{team.length < 3 ? ` (${team.length} joueurs)` : ''}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {team.map(id => {
-                      const p = players.find(pl => pl.id === id)
-                      return (
-                        <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #D8E4F5', borderRadius: 8, padding: '5px 10px' }}>
-                          <Avatar player={p} size={24} />
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       )}
 
-      {!isClosed && participants.length < 6 && (
-        <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', marginBottom: 20 }}>
-          {6 - participants.length} participant{6 - participants.length > 1 ? 's' : ''} manquant{6 - participants.length > 1 ? 's' : ''} pour generer des equipes
+      {/* Equipes aleatoires */}
+      {tab === 'equipes' && (
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
+          Equipes aleatoires
         </div>
+        {participants.length < 6 ? (
+          <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', padding: '16px 0' }}>
+            {6 - participants.length} participant{6 - participants.length > 1 ? 's' : ''} manquant{6 - participants.length > 1 ? 's' : ''} pour generer des equipes
+          </div>
+        ) : (
+          <>
+            <button className="btn btn-primary" onClick={() => setRandomTeams(makeTeams(participants))}>
+              Generer les equipes
+            </button>
+            {randomTeams && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                {randomTeams.map((team, i) => (
+                  <div key={i} style={{ background: '#F4F8FE', borderRadius: 10, padding: '12px 14px', border: '1px solid #D8E4F5' }}>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+                      Equipe {i + 1}{team.length < 3 ? ` (${team.length} joueurs)` : ''}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {team.map(id => {
+                        const p = players.find(pl => pl.id === id)
+                        return (
+                          <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #D8E4F5', borderRadius: 8, padding: '5px 10px' }}>
+                            <Avatar player={p} size={24} />
+                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
       )}
 
       {!isClosed && (
