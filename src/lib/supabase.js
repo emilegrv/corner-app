@@ -271,6 +271,11 @@ export async function deleteEvent(event, players) {
     }
     await Promise.all(updates)
   }
+
+  // Délier les matchs associés avant de supprimer
+  await supabase.from('matches').update({ event_id: null }).eq('event_id', event.id)
+
+  // Supprimer l'évènement
   const { error } = await supabase.from('events').delete().eq('id', event.id)
   if (error) throw error
 }
