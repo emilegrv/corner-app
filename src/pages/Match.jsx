@@ -396,22 +396,38 @@ export default function Match() {
             {events.map(ev => {
               const color = { 'ACP 250': '#2E6CC7', 'ACP 500': '#C87941', 'ACP 1000': '#1A8A4A', 'WST': '#7C3AED' }[ev.type] || '#2E6CC7'
               const selected = selectedEventId === ev.id
+              const participants = ev.participants || []
+              // Vérifie que tous les joueurs sélectionnés (non-invités) sont participants
+              const selectedPlayerIds = [...teamA, ...teamB].filter(id => id && id !== '__guest__')
+              const missingPlayers = selectedPlayerIds
+                .filter(id => !participants.includes(id))
+                .map(id => players.find(p => p.id === id)?.first_name || '?')
+              const isEligible = missingPlayers.length === 0
               return (
-                <div key={ev.id} onClick={() => setSelectedEventId(ev.id)} style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                  border: `1.5px solid ${selected ? color : '#D8E4F5'}`,
-                  background: selected ? `${color}12` : '#fff',
-                  transition: 'all 0.15s',
-                }}>
-                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: selected ? color : '#D8E4F5', flexShrink: 0 }} />
+                <div key={ev.id}
+                  onClick={() => isEligible && setSelectedEventId(ev.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', borderRadius: 10,
+                    cursor: isEligible ? 'pointer' : 'not-allowed',
+                    border: `1.5px solid ${!isEligible ? '#F5C0C0' : selected ? color : '#D8E4F5'}`,
+                    background: !isEligible ? '#FFF8F8' : selected ? `${color}12` : '#fff',
+                    opacity: isEligible ? 1 : 0.7,
+                    transition: 'all 0.15s',
+                  }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: !isEligible ? '#F5C0C0' : selected ? color : '#D8E4F5', flexShrink: 0 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: selected ? color : '#0A1628' }}>{ev.name}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: !isEligible ? '#C0392B' : selected ? color : '#0A1628' }}>{ev.name}</div>
                     {ev.date && <div style={{ fontSize: 11, color: '#7A94B8', marginTop: 1 }}>
                       {new Date(ev.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </div>}
+                    {!isEligible && (
+                      <div style={{ fontSize: 11, color: '#C0392B', marginTop: 2, fontWeight: 600 }}>
+                        {missingPlayers.join(', ')} {missingPlayers.length > 1 ? 'ne sont pas' : "n'est pas"} inscrit{missingPlayers.length > 1 ? 's' : ''} à cet évènement
+                      </div>
+                    )}
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, background: color, color: '#fff', borderRadius: 5, padding: '2px 7px' }}>{ev.type}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, background: isEligible ? color : '#F5C0C0', color: isEligible ? '#fff' : '#C0392B', borderRadius: 5, padding: '2px 7px' }}>{ev.type}</span>
                 </div>
               )
             })}
