@@ -387,6 +387,27 @@ function EventDetail({ event, players, onBack, onRefresh }) {
           <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 18, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
             {isClosed ? 'Classement final' : `Classement en direct · ${eventMatches.length} match${eventMatches.length > 1 ? 's' : ''}`}
           </div>
+          <style>{`
+            @keyframes shinyGold {
+              0%   { background-position: -200% center; }
+              100% { background-position: 200% center; }
+            }
+            .rank-first {
+              font-family: 'Barlow Condensed', sans-serif;
+              font-weight: 900;
+              font-size: 36px;
+              background: linear-gradient(90deg, #B8860B 0%, #FFD700 30%, #FFF8DC 50%, #FFD700 70%, #B8860B 100%);
+              background-size: 200% auto;
+              -webkit-background-clip: text;
+              background-clip: text;
+              -webkit-text-fill-color: transparent;
+              animation: shinyGold 2s linear infinite;
+              filter: drop-shadow(0 0 6px rgba(255,215,0,0.6));
+              min-width: 44px;
+              text-align: center;
+              line-height: 1;
+            }
+          `}</style>
           {liveRanked.length === 0 ? (
             <div style={{ fontSize: 14, color: '#7A94B8', textAlign: 'center', padding: '24px 0' }}>
               Aucun participant pour le moment
@@ -399,26 +420,34 @@ function EventDetail({ event, players, onBack, onRefresh }) {
               const wr = total > 0 ? Math.round(100 * stats.wins / total) : 0
               const isTop3 = i < 3
               const rowColor = i === 0 ? '#F5C842' : i === 1 ? '#AAA' : i === 2 ? '#C87941' : color
+              const nameSize = i === 0 ? 24 : i === 1 ? 22 : i === 2 ? 20 : 18
               return (
                 <div key={id} style={{
                   display: 'flex', alignItems: 'center', gap: 14,
-                  padding: '14px 0', borderBottom: '1px solid #F0F4FB',
-                  background: i === 0 ? 'linear-gradient(90deg, rgba(245,200,66,0.07), transparent)' : 'none',
+                  padding: i === 0 ? '16px 0' : '12px 0',
+                  borderBottom: '1px solid #F0F4FB',
+                  background: i === 0 ? 'linear-gradient(90deg, rgba(245,200,66,0.08), transparent)' : 'none',
                 }}>
-                  <div style={{
-                    fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 26,
-                    color: rowColor, minWidth: 36, textAlign: 'center',
-                  }}>
-                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
-                  </div>
-                  <Avatar player={p} size={44} />
+                  {i === 0
+                    ? <div className="rank-first">🥇</div>
+                    : <div style={{
+                        fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900,
+                        fontSize: i === 1 ? 28 : i === 2 ? 26 : 22,
+                        color: rowColor, minWidth: 44, textAlign: 'center',
+                      }}>
+                        {i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                      </div>
+                  }
+                  <Avatar player={p} size={i === 0 ? 48 : 40} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 800, fontSize: 20, color: '#0A1628', letterSpacing: 0.3 }}>{p?.first_name || p?.name || '?'}</div>
+                    <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: nameSize, color: '#0A1628', letterSpacing: 0.3 }}>
+                      {p?.first_name || p?.name || '?'}
+                    </div>
                     <div style={{ fontSize: 12, color: '#7A94B8', marginTop: 1 }}>{wr}% win rate · {total} match{total > 1 ? 's' : ''}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: '#1A8A4A' }}>{stats.wins}V</span>
-                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 24, fontWeight: 900, color: '#C0392B' }}>{stats.losses}D</span>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: i === 0 ? 26 : 22, fontWeight: 900, color: '#1A8A4A' }}>{stats.wins}V</span>
+                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: i === 0 ? 26 : 22, fontWeight: 900, color: '#C0392B' }}>{stats.losses}D</span>
                   </div>
                   {isTop3 && (
                     <span style={{ fontSize: 13, fontWeight: 700, background: rowColor, color: i === 0 ? '#0A1628' : '#fff', borderRadius: 6, padding: '3px 10px', minWidth: 60, textAlign: 'center' }}>
