@@ -297,7 +297,14 @@ export async function closeEvent(event, players) {
 
   const stats = {}
   const participants = event.participants || []
+  // Initialiser tous les participants actuels
   participants.forEach(id => { stats[id] = { wins: 0, losses: 0 } })
+  // Initialiser aussi les joueurs retirés qui ont quand même joué des matchs
+  ;(matches || []).forEach(m => {
+    ;[...(m.team_a || []), ...(m.team_b || [])].forEach(id => {
+      if (!stats[id]) stats[id] = { wins: 0, losses: 0 }
+    })
+  })
 
   ;(matches || []).forEach(m => {
     const winners = m.winner === 'A' ? m.team_a : m.team_b
@@ -306,8 +313,13 @@ export async function closeEvent(event, players) {
     ;(losers || []).forEach(id => { if (stats[id]) stats[id].losses++ })
   })
 
-  const ranked = participants
-    .filter(id => players.find(p => p.id === id))
+  // Classer tous les joueurs ayant joué (participants actuels + retirés)
+  const allEventPlayerIds = [...new Set([
+    ...participants,
+    ...(matches || []).flatMap(m => [...(m.team_a || []), ...(m.team_b || [])])
+  ])].filter(id => players.find(p => p.id === id))
+
+  const ranked = allEventPlayerIds
     .sort((a, b) => (stats[b]?.wins || 0) - (stats[a]?.wins || 0))
 
   const points = EVENT_POINTS[event.type] || [25, 15, 10]
