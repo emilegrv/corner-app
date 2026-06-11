@@ -316,7 +316,9 @@ export default function Historique() {
     if (!confirm('Annuler ce match et rétablir les points ELO ?')) return
     setDeleting(true)
     try {
-      await deleteLastMatch(players)
+      // Recharge les joueurs en temps réel avant l'annulation pour éviter les données obsolètes
+      const freshPlayers = await getPlayers()
+      await deleteLastMatch(freshPlayers)
       toast('Match annulé — points rétablis !')
       load()
     } catch (e) {
