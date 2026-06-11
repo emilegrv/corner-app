@@ -287,7 +287,7 @@ function EventDetail({ event, players, onBack, onRefresh }) {
     .sort((a, b) => {
       const diff = (liveStats[b]?.wins || 0) - (liveStats[a]?.wins || 0)
       if (diff !== 0) return diff
-      return (liveStats[b]?.losses || 0) - (liveStats[a]?.losses || 0)
+      return (liveStats[a]?.losses || 0) - (liveStats[b]?.losses || 0)
     })
 
   async function togglePresence(playerId) {
@@ -500,9 +500,12 @@ function EventDetail({ event, players, onBack, onRefresh }) {
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
           Equipes aleatoires
         </div>
-        {participants.length < 6 ? (
+        {participants.length < 6 || participants.length % 3 !== 0 ? (
           <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', padding: '16px 0' }}>
-            {6 - participants.length} participant{6 - participants.length > 1 ? 's' : ''} manquant{6 - participants.length > 1 ? 's' : ''} pour generer des equipes
+            {participants.length < 6
+              ? `${6 - participants.length} participant${6 - participants.length > 1 ? 's' : ''} manquant${6 - participants.length > 1 ? 's' : ''} pour generer des equipes`
+              : `${participants.length} participants — il faut un multiple de 3 (${participants.length - (participants.length % 3)} ou ${participants.length + (3 - participants.length % 3)})`
+            }
           </div>
         ) : (
           <>
