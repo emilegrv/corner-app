@@ -235,7 +235,7 @@ export default function Match() {
   async function handleSubmit() {
     setLoading(true)
     try {
-      const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB, eventId: selectedEventId || null })
+      const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB, eventId: selectedEventId || null, guestNamesA, guestNamesB })
       toast('Match enregistré !')
       setTeamA(['', '', ''])
       setTeamB(['', '', ''])
