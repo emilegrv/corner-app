@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { getPlayers, addPlayer, deletePlayer, updatePlayer, uploadPhoto } from '../lib/supabase'
+import { getPlayers, addPlayer, deletePlayer, updatePlayer, uploadPhoto, getMatches } from '../lib/supabase'
 import { useToast } from '../App'
 
 function formatName(p) {
@@ -88,7 +88,14 @@ export default function Joueurs() {
 
   async function handleDelete(id) {
     const p = players.find(p => p.id === id)
-    if (!confirm(`Supprimer ${formatName(p)} ?`)) return
+    const matches = await getMatches()
+    const matchCount = matches.filter(m =>
+      [...(m.team_a || []), ...(m.team_b || [])].includes(id)
+    ).length
+    const warning = matchCount > 0
+      ? `\n\n⚠️ Ce joueur apparait dans ${matchCount} match${matchCount > 1 ? 's' : ''} — son nom affichera "?" dans l'historique.`
+      : ''
+    if (!confirm(`Supprimer ${formatName(p)} ?${warning}`)) return
     try {
       await deletePlayer(id)
       if (meId === id) { localStorage.removeItem(ME_KEY); setMeId(null) }
