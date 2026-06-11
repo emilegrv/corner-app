@@ -314,7 +314,7 @@ function EventDetail({ event, players, onBack, onRefresh }) {
   }
 
   async function handleClose() {
-    const answer = window.prompt("Est-ce que tu n'es pas trop bourré ?")
+    const answer = window.prompt("Est-ce que tu n'es pas trop bourré ?\n\nPour confirmer la clôture, tape exactement : oui lache sa")
     if (answer === null) return
     if (answer.trim().toLowerCase() !== 'oui lache sa') {
       toast("Mauvaise réponse — clôture annulée", true)
