@@ -131,7 +131,7 @@ function EditModal({ event, players, onClose, onSaved, onDeleted }) {
     if (!confirm("Remettre cet évènement en cours ?\n\nLe classement et les matchs sont conservés, aucun point n'est modifié.")) return
     setReopening(true)
     try {
-      await reopenEvent(event.id)
+      await reopenEvent(event, players)
       toast("Évènement remis en cours !")
       onSaved()
     } catch (e) { toast('Erreur : ' + e.message, true) }
