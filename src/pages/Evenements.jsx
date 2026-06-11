@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { getEvents, getPlayers, createEvent, updateEvent, updateEventParticipants, uploadEventPhoto, closeEvent, deleteEvent, EVENT_POINTS } from '../lib/supabase'
+import { getEvents, getPlayers, createEvent, updateEvent, updateEventParticipants, uploadEventPhoto, closeEvent, deleteEvent, EVENT_POINTS, reopenEvent } from '../lib/supabase'
 import { useToast } from '../App'
 
 const ME_KEY = 'sanglich_me_id'
@@ -125,6 +125,18 @@ function EditModal({ event, players, onClose, onSaved, onDeleted }) {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [reopening, setReopening] = useState(false)
+
+  async function handleReopen() {
+    if (!confirm("Remettre cet évènement en cours ?\n\nLe classement et les matchs sont conservés, aucun point n'est modifié.")) return
+    setReopening(true)
+    try {
+      await reopenEvent(event.id)
+      toast("Évènement remis en cours !")
+      onSaved()
+    } catch (e) { toast('Erreur : ' + e.message, true) }
+    finally { setReopening(false) }
+  }
 
   async function handleSave() {
     if (!form.name.trim()) return
@@ -230,6 +242,20 @@ function EditModal({ event, players, onClose, onSaved, onDeleted }) {
             {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
+
+        {/* Remettre en cours — uniquement si clôturé */}
+        {event.status === 'closed' && (
+          <div style={{ paddingTop: 12, borderTop: '1px solid #F0F4FB', marginBottom: 12 }}>
+            <button onClick={handleReopen} disabled={reopening} style={{
+              width: '100%', padding: '10px', borderRadius: 8, cursor: 'pointer',
+              background: '#F0FAF4', color: '#1A8A4A', border: '1.5px solid #C6EFCE',
+              fontFamily: "'Barlow', sans-serif", fontSize: 13, fontWeight: 700,
+              transition: 'all 0.15s',
+            }}>
+              {reopening ? 'Remise en cours...' : '🔄 Remettre en cours'}
+            </button>
+          </div>
+        )}
 
         {/* Supprimer */}
         <div style={{ paddingTop: 12, borderTop: '1px solid #F0F4FB' }}>
