@@ -113,13 +113,17 @@ export async function getSeasons() {
 const K = 40
 const BEER_BONUS = 10
 
-export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players, scoreA, scoreB, eventId }) {
+export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players, scoreA, scoreB, eventId, guestNamesA = [], guestNamesB = [] }) {
   const allIds = [...teamA, ...teamB]
   const hasGuest = allIds.some(id => id === '__guest__' || players.find(p => p.id === id)?.is_guest)
 
   // Filtrer __guest__ pour le stockage UUID[] en DB
   const teamAClean = teamA.filter(id => id !== '__guest__')
   const teamBClean = teamB.filter(id => id !== '__guest__')
+
+  // Noms des invités par équipe
+  const guestNamesAClean = teamA.map((id, i) => id === '__guest__' ? (guestNamesA[i] || 'Invité') : null).filter(Boolean)
+  const guestNamesBClean = teamB.map((id, i) => id === '__guest__' ? (guestNamesB[i] || 'Invité') : null).filter(Boolean)
 
   // Calculer les deltas ELO en ignorant les invités dans la moyenne
   const realTeamA = teamA.filter(id => id !== '__guest__' && players.find(p => p.id === id && !p.is_guest))
@@ -146,6 +150,8 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
     winner: winnerTeam,
     beer_bonus: beerBonus,
     has_guest: hasGuest,
+    guest_names_a: guestNamesAClean,
+    guest_names_b: guestNamesBClean,
     delta_a: deltaA,
     delta_b: deltaB,
     event_id: eventId || null,
