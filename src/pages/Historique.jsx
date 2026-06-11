@@ -111,6 +111,8 @@ function MatchRow({ match, players, highlightId, isLast, onDelete }) {
   const getP = id => players.find(p => p.id === id)
   const winTeamIds = match.winner === 'A' ? match.team_a : match.team_b
   const loseTeamIds = match.winner === 'A' ? match.team_b : match.team_a
+  const winGuestNames = match.winner === 'A' ? (match.guest_names_a || []) : (match.guest_names_b || [])
+  const loseGuestNames = match.winner === 'A' ? (match.guest_names_b || []) : (match.guest_names_a || [])
   const isAvengers = isAvengersTeam(winTeamIds, players) || isAvengersTeam(loseTeamIds, players)
 
   return (
@@ -164,6 +166,11 @@ function MatchRow({ match, players, highlightId, isLast, onDelete }) {
                   </div>
                 )
               })}
+              {winGuestNames.map((name, i) => (
+                <div key={`guest-win-${i}`} style={{ fontSize: 13, color: '#1A8A4A', marginBottom: 2, fontStyle: 'italic' }}>
+                  {name} <span style={{ fontSize: 11, color: '#B8860B' }}>(invité)</span>
+                </div>
+              ))}
             </div>
             <div style={{ textAlign: 'center', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 22, color: '#0A1628', whiteSpace: 'nowrap' }}>
               🏆
@@ -177,6 +184,11 @@ function MatchRow({ match, players, highlightId, isLast, onDelete }) {
                   </div>
                 )
               })}
+              {loseGuestNames.map((name, i) => (
+                <div key={`guest-lose-${i}`} style={{ fontSize: 13, color: '#7A94B8', marginBottom: 2, fontStyle: 'italic' }}>
+                  {name} <span style={{ fontSize: 11, color: '#B8860B' }}>(invité)</span>
+                </div>
+              ))}
             </div>
           </div>
 
