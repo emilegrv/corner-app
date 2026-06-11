@@ -45,7 +45,13 @@ export default function Palmares() {
   useEffect(() => { load() }, [])
 
   async function handleArchive() {
-    if (!confirm('Archiver la saison courante et remettre tous les ELO à 1000 ?')) return
+    const confirmText = window.prompt(
+      `⚠️ Cette action est irréversible !\n\nElle va archiver la saison ${getCurrentSeasonYear()} et remettre TOUS les ELOs à 1000.\n\nTape "ARCHIVER" pour confirmer :`
+    )
+    if (confirmText !== 'ARCHIVER') {
+      if (confirmText !== null) toast('Archivage annulé — texte incorrect', true)
+      return
+    }
     setArchiving(true)
     try {
       const year = getCurrentSeasonYear()
@@ -86,11 +92,19 @@ export default function Palmares() {
           </div>
         )}
 
+        {!isResetDay() && (
+          <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#C0392B' }}>
+              ⚠️ La saison se termine le 21 octobre. L'archivage avant cette date remet tous les ELOs à 1000 définitivement.
+            </div>
+          </div>
+        )}
+
         <button
           className="btn"
           onClick={handleArchive}
           disabled={archiving}
-          style={{ background: '#F5C842', color: '#0A1628', fontWeight: 700 }}
+          style={{ background: isResetDay() ? '#F5C842' : '#fff', color: '#0A1628', fontWeight: 700, border: isResetDay() ? 'none' : '1.5px solid #C0392B' }}
         >
           {archiving ? 'Archivage...' : `Archiver la saison ${currentYear}`}
         </button>
