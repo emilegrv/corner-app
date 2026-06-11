@@ -40,6 +40,9 @@ export default function Palmares() {
   const load = () => Promise.all([getSeasons(), getPlayers()]).then(([s, p]) => {
     setSeasons(s)
     setPlayers(p)
+  }).catch(e => {
+    setSeasons([]) // stoppe le spinner même en cas d'erreur
+    toast('Erreur chargement palmarès : ' + e.message, true)
   })
 
   useEffect(() => { load() }, [])
