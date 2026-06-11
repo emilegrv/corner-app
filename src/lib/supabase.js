@@ -57,7 +57,6 @@ export async function getMatches() {
     .from('matches')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(100)
   if (error) throw error
   return data
 }
@@ -321,11 +320,18 @@ export async function closeEvent(event, players) {
   }
   await Promise.all(updates)
 
-  const standings = ranked.map((id, idx) => ({
-    id, rank: idx + 1,
-    wins: stats[id]?.wins || 0,
-    losses: stats[id]?.losses || 0,
-  }))
+  const standings = ranked.map((id, idx) => {
+    // Vrai rang en tenant compte des ex-æquo
+    let rank = 1
+    for (let j = 0; j < idx; j++) {
+      if ((stats[ranked[j]]?.wins || 0) > (stats[id]?.wins || 0)) rank++
+    }
+    return {
+      id, rank,
+      wins: stats[id]?.wins || 0,
+      losses: stats[id]?.losses || 0,
+    }
+  })
 
   const { error } = await supabase.from('events').update({ status: 'closed', standings }).eq('id', event.id)
   if (error) throw error
