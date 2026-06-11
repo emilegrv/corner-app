@@ -364,3 +364,8 @@ export async function closeEvent(event, players) {
   const { error } = await supabase.from('events').update({ status: 'closed', standings }).eq('id', event.id)
   if (error) throw error
 }
+
+export async function reopenEvent(eventId) {
+  const { error } = await supabase.from('events').update({ status: 'ongoing' }).eq('id', eventId)
+  if (error) throw error
+}
