@@ -314,7 +314,12 @@ function EventDetail({ event, players, onBack, onRefresh }) {
   }
 
   async function handleClose() {
-    if (!confirm('Cloture et distribue les points bonus ?')) return
+    const answer = window.prompt("Est-ce que tu n'es pas trop bourré ?")
+    if (answer === null) return
+    if (answer.trim().toLowerCase() !== 'oui lache sa') {
+      toast("Mauvaise réponse — clôture annulée", true)
+      return
+    }
     setClosing(true)
     try {
       await closeEvent(event, players)
