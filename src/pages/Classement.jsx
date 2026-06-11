@@ -218,7 +218,7 @@ export default function Classement() {
 
   const top3 = players.slice(0, 3)
   const rest = players.slice(3)
-  const podiumOrder = top3.length >= 2 ? [1, 0, 2].filter(i => top3[i]) : [0]
+  const podiumOrder = top3.length === 3 ? [1, 0, 2] : top3.map((_, i) => i)
 
   return (
     <main className="page">
