@@ -72,7 +72,8 @@ export async function deleteLastMatch(players) {
 
   const match = matches[0]
   const updates = []
-  if (!match.has_guest) {
+  // Toujours rétablir l'ELO des joueurs réguliers (même si le match avait un invité)
+  if (match.delta_a !== 0 || match.delta_b !== 0) {
     for (const id of (match.team_a || [])) {
       if (id === '__guest__') continue
       const p = players.find(p => p.id === id)
@@ -93,8 +94,8 @@ export async function deleteLastMatch(players) {
         losses: match.winner === 'A' ? Math.max(0, p.losses - 1) : p.losses,
       }).eq('id', id))
     }
-    await Promise.all(updates)
   }
+  if (updates.length > 0) await Promise.all(updates)
   const { error: delErr } = await supabase.from('matches').delete().eq('id', match.id)
   if (delErr) throw delErr
   return match
@@ -114,14 +115,22 @@ const BEER_BONUS = 10
 
 export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players, scoreA, scoreB, eventId }) {
   const allIds = [...teamA, ...teamB]
-  const hasGuest = allIds.some(id => players.find(p => p.id === id)?.is_guest) || allIds.includes('__guest__')
+  const hasGuest = allIds.some(id => id === '__guest__' || players.find(p => p.id === id)?.is_guest)
+
+  // Filtrer __guest__ pour le stockage UUID[] en DB
+  const teamAClean = teamA.filter(id => id !== '__guest__')
+  const teamBClean = teamB.filter(id => id !== '__guest__')
+
+  // Calculer les deltas ELO en ignorant les invités dans la moyenne
+  const realTeamA = teamA.filter(id => id !== '__guest__' && players.find(p => p.id === id && !p.is_guest))
+  const realTeamB = teamB.filter(id => id !== '__guest__' && players.find(p => p.id === id && !p.is_guest))
 
   let deltaA = 0
   let deltaB = 0
 
-  if (!hasGuest) {
+  if (realTeamA.length > 0 && realTeamB.length > 0) {
     const avg = ids => ids.reduce((s, id) => s + players.find(p => p.id === id).elo, 0) / ids.length
-    const expA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400))
+    const expA = 1 / (1 + Math.pow(10, (avg(realTeamB) - avg(realTeamA)) / 400))
     const sa = winnerTeam === 'A' ? 1 : 0
     deltaA = Math.round(K * (sa - expA))
     deltaB = Math.round(K * ((1 - sa) - (1 - expA)))
@@ -132,37 +141,38 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
   }
 
   const { error: matchError } = await supabase.from('matches').insert({
-    team_a: teamA, team_b: teamB,
+    team_a: teamAClean,
+    team_b: teamBClean,
     winner: winnerTeam,
     beer_bonus: beerBonus,
     has_guest: hasGuest,
-    delta_a: deltaA, delta_b: deltaB,
+    delta_a: deltaA,
+    delta_b: deltaB,
     event_id: eventId || null,
   })
   if (matchError) throw matchError
 
-  if (!hasGuest) {
-    const updates = []
-    for (const id of teamA) {
-      const p = players.find(p => p.id === id)
-      if (!p) continue
-      updates.push(supabase.from('players').update({
-        elo: p.elo + deltaA,
-        wins: winnerTeam === 'A' ? p.wins + 1 : p.wins,
-        losses: winnerTeam === 'B' ? p.losses + 1 : p.losses,
-      }).eq('id', id))
-    }
-    for (const id of teamB) {
-      const p = players.find(p => p.id === id)
-      if (!p) continue
-      updates.push(supabase.from('players').update({
-        elo: p.elo + deltaB,
-        wins: winnerTeam === 'B' ? p.wins + 1 : p.wins,
-        losses: winnerTeam === 'A' ? p.losses + 1 : p.losses,
-      }).eq('id', id))
-    }
-    await Promise.all(updates)
+  // Mettre à jour l'ELO des joueurs réguliers uniquement
+  const updates = []
+  for (const id of realTeamA) {
+    const p = players.find(p => p.id === id)
+    if (!p) continue
+    updates.push(supabase.from('players').update({
+      elo: p.elo + deltaA,
+      wins: winnerTeam === 'A' ? p.wins + 1 : p.wins,
+      losses: winnerTeam === 'B' ? p.losses + 1 : p.losses,
+    }).eq('id', id))
   }
+  for (const id of realTeamB) {
+    const p = players.find(p => p.id === id)
+    if (!p) continue
+    updates.push(supabase.from('players').update({
+      elo: p.elo + deltaB,
+      wins: winnerTeam === 'B' ? p.wins + 1 : p.wins,
+      losses: winnerTeam === 'A' ? p.losses + 1 : p.losses,
+    }).eq('id', id))
+  }
+  await Promise.all(updates)
 
   return { deltaA, deltaB, hasGuest }
 }
