@@ -48,6 +48,12 @@ export default function Palmares() {
   useEffect(() => { load() }, [])
 
   async function handleArchive() {
+    const secretCode = window.prompt('Code secret :')
+    if (secretCode === null) return
+    if (secretCode !== 'berebagarre') {
+      toast('Code incorrect', true)
+      return
+    }
     const confirmText = window.prompt(
       `⚠️ Cette action est irréversible !\n\nElle va archiver la saison ${getCurrentSeasonYear()} et remettre TOUS les ELOs à 1000.\n\nTape "ARCHIVER" pour confirmer :`
     )
