@@ -225,18 +225,18 @@ export default function Match() {
   const canSubmit = allSelected && allUnique && scoresValid
 
   const preview = useMemo(() => {
-    if (!canSubmit || !winner || hasGuest) return null
-    const realTeamA = teamA.filter(id => id !== '__guest__')
-    const realTeamB = teamB.filter(id => id !== '__guest__')
-    if (realTeamA.length < 3 || realTeamB.length < 3) return null
-    return computeDeltas(teamA, teamB, winner, beerBonus, players)
-  }, [canSubmit, winner, hasGuest, teamA, teamB, beerBonus, players])
+    if (!canSubmit || !winner) return null
+    const realTeamA = teamA.filter(id => id !== '__guest__' && players.find(p => p.id === id))
+    const realTeamB = teamB.filter(id => id !== '__guest__' && players.find(p => p.id === id))
+    if (realTeamA.length === 0 || realTeamB.length === 0) return null
+    return computeDeltas(realTeamA, realTeamB, winner, beerBonus, players)
+  }, [canSubmit, winner, teamA, teamB, beerBonus, players])
 
   async function handleSubmit() {
     setLoading(true)
     try {
       const result = await submitMatch({ teamA, teamB, winnerTeam: winner, beerBonus, players, scoreA, scoreB, eventId: selectedEventId || null })
-      toast(hasGuest ? 'Match enregistré (joueur extérieur — ELO non modifié)' : 'Match enregistré !')
+      toast('Match enregistré !')
       setTeamA(['', '', ''])
       setTeamB(['', '', ''])
       setGuestNamesA(['', '', ''])
@@ -483,12 +483,12 @@ export default function Match() {
           {/* Guest warning */}
           {hasGuest && (
             <div style={{ background: '#FFF8E6', border: '1px solid #F5C842', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 13, color: '#856404', fontWeight: 600 }}>
-              👤 Un invité est présent — ce match ne comptera pas pour le classement ELO.
+              👤 Un invité est présent — l'ELO des joueurs réguliers est quand même calculé, l'invité est hors classement.
             </div>
           )}
 
           {/* ELO Preview */}
-          {preview && !hasGuest && (
+          {preview && (
             <div className="card" style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 10, color: '#7A94B8', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 600, marginBottom: 12 }}>
                 Aperçu ELO {beerBonus ? '(+10 bonus bière inclus)' : ''}
@@ -498,6 +498,12 @@ export default function Match() {
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#2E6CC7', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Équipe A</div>
                   {teamA.map(id => {
+                    if (id === '__guest__') return (
+                      <div key="guest-a" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFF8E6', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#856404' }}>Invité</span>
+                        <span style={{ fontSize: 12, color: '#B8860B' }}>hors classement</span>
+                      </div>
+                    )
                     const p = players.find(pl => pl.id === id)
                     if (!p) return null
                     return (
@@ -518,6 +524,12 @@ export default function Match() {
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: '#C87941', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Équipe B</div>
                   {teamB.map(id => {
+                    if (id === '__guest__') return (
+                      <div key="guest-b" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FFF8E6', borderRadius: 8, padding: '8px 12px', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#856404' }}>Invité</span>
+                        <span style={{ fontSize: 12, color: '#B8860B' }}>hors classement</span>
+                      </div>
+                    )
                     const p = players.find(pl => pl.id === id)
                     if (!p) return null
                     return (
