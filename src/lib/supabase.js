@@ -365,7 +365,32 @@ export async function closeEvent(event, players) {
   if (error) throw error
 }
 
-export async function reopenEvent(eventId) {
-  const { error } = await supabase.from('events').update({ status: 'ongoing' }).eq('id', eventId)
+export async function reopenEvent(event, players) {
+  // Retirer les points distribués lors de la clôture
+  if (event.standings && event.standings.length > 0) {
+    const points = EVENT_POINTS[event.type] || [25, 15, 10]
+    const updates = []
+    let i = 0
+    const standings = event.standings
+    while (i < Math.min(standings.length, 3)) {
+      const currentWins = standings[i]?.wins || 0
+      const tied = standings.filter((s, idx) => idx >= i && idx < 3 && (s?.wins || 0) === currentWins)
+      const startIdx = i
+      const endIdx = Math.min(startIdx + tied.length - 1, 2)
+      const totalPts = points.slice(startIdx, endIdx + 1).reduce((s, p) => s + p, 0)
+      const sharedPts = Math.round(totalPts / tied.length)
+      tied.forEach(s => {
+        const p = players.find(pl => pl.id === s.id)
+        if (p && sharedPts > 0) {
+          updates.push(supabase.from('players').update({ elo: Math.max(0, p.elo - sharedPts) }).eq('id', s.id))
+        }
+      })
+      i += tied.length
+    }
+    await Promise.all(updates)
+  }
+
+  // Remettre en cours et effacer les standings
+  const { error } = await supabase.from('events').update({ status: 'ongoing', standings: [] }).eq('id', event.id)
   if (error) throw error
 }
