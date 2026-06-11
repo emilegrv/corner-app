@@ -273,17 +273,30 @@ function EventDetail({ event, players, onBack, onRefresh }) {
     })
   }, [event.id])
 
-  // Calcule V/D en live pour chaque participant
+  // Calcule V/D en live pour tous les joueurs ayant joué (même si retirés des participants)
   const liveStats = {}
+  // Initialiser d'abord tous les participants actuels
   participants.forEach(id => { liveStats[id] = { wins: 0, losses: 0 } })
+  // Initialiser aussi tous les joueurs présents dans les matchs (en cas de retrait)
+  eventMatches.forEach(m => {
+    ;[...(m.team_a || []), ...(m.team_b || [])].forEach(id => {
+      if (!liveStats[id]) liveStats[id] = { wins: 0, losses: 0 }
+    })
+  })
   eventMatches.forEach(m => {
     const winners = m.winner === 'A' ? m.team_a : m.team_b
     const losers = m.winner === 'A' ? m.team_b : m.team_a
     ;(winners || []).forEach(id => { if (liveStats[id]) liveStats[id].wins++ })
     ;(losers || []).forEach(id => { if (liveStats[id]) liveStats[id].losses++ })
   })
-  const liveRanked = [...participants]
-    .filter(id => players.find(p => p.id === id))
+
+  // Construire le classement : participants actuels + joueurs retirés qui ont joué
+  const allEventPlayerIds = [...new Set([
+    ...participants,
+    ...eventMatches.flatMap(m => [...(m.team_a || []), ...(m.team_b || [])])
+  ])].filter(id => players.find(p => p.id === id))
+
+  const liveRanked = allEventPlayerIds
     .sort((a, b) => {
       const diff = (liveStats[b]?.wins || 0) - (liveStats[a]?.wins || 0)
       if (diff !== 0) return diff
