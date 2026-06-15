@@ -423,3 +423,33 @@ export async function reopenEvent(event, players) {
   const { error } = await supabase.from('events').update({ status: 'ongoing', standings: [] }).eq('id', event.id)
   if (error) throw error
 }
+
+// ── Une / App Settings ────────────────────────────────────
+
+export async function getUne() {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('key', 'une')
+    .single()
+  if (error) return { image_url: null, titre: null, kicker: null }
+  return data.value
+}
+
+export async function saveUne({ image_url, titre, kicker }) {
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key: 'une', value: { image_url, titre, kicker } })
+  if (error) throw error
+}
+
+export async function uploadUnePhoto(file) {
+  const ext = file.name.split('.').pop()
+  const path = `une.${ext}`
+  const { error: upErr } = await supabase.storage
+    .from('player-photos')
+    .upload(path, file, { upsert: true })
+  if (upErr) throw upErr
+  const { data } = supabase.storage.from('player-photos').getPublicUrl(path)
+  return data.publicUrl + '?t=' + Date.now()
+}
