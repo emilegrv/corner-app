@@ -20,11 +20,26 @@ function computeDeltas(teamA, teamB, winnerTeam, beerBonus, players) {
   const hasGuest = [...teamA, ...teamB].some(id => players.find(p => p.id === id)?.is_guest)
   if (hasGuest) return null
   const avg = ids => ids.reduce((s, id) => s + players.find(p => p.id === id).elo, 0) / ids.length
-  const K = 40
-  const expA = 1 / (1 + Math.pow(10, (avg(teamB) - avg(teamA)) / 400))
-  const sa = winnerTeam === 'A' ? 1 : 0
-  let deltaA = Math.round(K * (sa - expA))
-  let deltaB = Math.round(K * ((1 - sa) - (1 - expA)))
+  const avgA = avg(teamA)
+  const avgB = avg(teamB)
+  const diff = avgA - avgB
+  const factor = Math.tanh(diff / 400)
+
+  let deltaWinner, deltaLoser
+  if (winnerTeam === 'A') {
+    deltaWinner = Math.round(30 - factor * 15)
+    deltaLoser  = Math.round(10 + factor * 5)
+  } else {
+    deltaWinner = Math.round(30 + factor * 15)
+    deltaLoser  = Math.round(10 - factor * 5)
+  }
+
+  deltaWinner = Math.max(5, deltaWinner)
+  deltaLoser  = Math.max(1, deltaLoser)
+
+  let deltaA = winnerTeam === 'A' ? deltaWinner : deltaLoser
+  let deltaB = winnerTeam === 'B' ? deltaWinner : deltaLoser
+
   if (beerBonus) {
     if (winnerTeam === 'A') deltaA += 10
     else deltaB += 10
