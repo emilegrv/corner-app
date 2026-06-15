@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getUne } from '../lib/supabase'
 
@@ -14,32 +14,21 @@ const navItems = [
 export default function Accueil() {
   const navigate = useNavigate()
   const [une, setUne] = useState(null)
-  const [imgColor, setImgColor] = useState('#f0f0f0')
 
   useEffect(() => { getUne().then(setUne) }, [])
 
-  function handleImageLoad(e) {
-    try {
-      const img = e.target
-      const canvas = document.createElement('canvas')
-      canvas.width = 4; canvas.height = 4
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, 4, 4)
-      const d = ctx.getImageData(0, 0, 1, 1).data
-      setImgColor(`rgb(${d[0]},${d[1]},${d[2]})`)
-    } catch(_) {}
-  }
-
   const hasUne = une && une.image_url
+
+  // Hauteur nav + titre estimée pour que la photo s'arrête pile là
+  const NAV_H = 130 // px — titre + catégories
 
   return (
     <div style={{
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      background: imgColor,
+      background: '#fff',
       overflow: 'hidden',
-      transition: 'background 0.4s ease',
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
@@ -79,27 +68,37 @@ export default function Accueil() {
 
       {hasUne ? (
         <>
-          {/* ── Photo — du haut jusqu'au titre ── */}
-          <div style={{ flex: 1, overflow: 'hidden', background: imgColor, minHeight: 0 }}>
+          {/* ── Photo plein largeur, couvre tout sans bandes ── */}
+          <div style={{
+            flex: 1,
+            position: 'relative',
+            overflow: 'hidden',
+            minHeight: 0,
+          }}>
             <img
               src={une.image_url}
               alt="Une"
-              crossOrigin="anonymous"
-              onLoad={handleImageLoad}
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain',
+                objectFit: 'cover',
                 objectPosition: 'center top',
                 display: 'block',
               }}
             />
+            {/* Fondu bas pour transition vers le titre */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              height: 80,
+              background: 'linear-gradient(to top, #fff 0%, transparent 100%)',
+              pointerEvents: 'none',
+            }} />
           </div>
 
           {/* ── Titre ── */}
           <div style={{
             background: '#fff',
-            padding: '10px 14px 8px',
+            padding: '0 14px 8px',
             flexShrink: 0,
           }}>
             {une.kicker && (
@@ -116,7 +115,7 @@ export default function Accueil() {
             )}
             <div style={{
               fontFamily: "'Oswald', sans-serif",
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: 700,
               color: '#0A1628',
               textTransform: 'uppercase',
@@ -137,11 +136,7 @@ export default function Accueil() {
             padding: '10px 16px 14px',
             flexShrink: 0,
           }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(6, 1fr)',
-              gap: 6,
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
               {navItems.map(({ to, label, emoji, color }) => (
                 <button key={to} className="nav-card" onClick={() => navigate(to)}>
                   <div className="nav-card-icon" style={{ background: color }}>
@@ -154,7 +149,6 @@ export default function Accueil() {
           </div>
         </>
       ) : (
-        /* ── Pas de Une ── */
         <>
           <div style={{ flex: 1, background: '#f7f7f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
