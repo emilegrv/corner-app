@@ -110,8 +110,42 @@ export async function getSeasons() {
   return data
 }
 
-const K = 40
 const BEER_BONUS = 10
+
+// Nouveau système ELO : toujours positif, +30 gagnants / +10 perdants à ELO égal,
+// lissé selon l'écart de classement (le faible qui gagne gagne plus, le fort qui gagne gagne moins)
+function computeEloDeltas(avgA, avgB, winnerTeam, beerBonus) {
+  // Base : +30 gagnant, +10 perdant pour équipes de même niveau
+  // On utilise l'écart ELO pour moduler, centré sur ces valeurs de base
+  const diff = avgA - avgB  // positif si A est favori
+  // Facteur de lissage : varie entre -1 et +1 selon l'écart (plafonné à ±400 pts d'écart)
+  const factor = Math.tanh(diff / 400)  // entre -1 et +1
+
+  let deltaWinner, deltaLoser
+  if (winnerTeam === 'A') {
+    // A gagne : si A est favori (factor > 0), gagne moins ; si outsider (factor < 0), gagne plus
+    deltaWinner = Math.round(30 - factor * 15)  // entre 15 et 45
+    deltaLoser  = Math.round(10 + factor * 5)   // entre 5 et 15
+  } else {
+    // B gagne : si B est outsider (factor > 0 = A favori), B gagne plus ; sinon moins
+    deltaWinner = Math.round(30 + factor * 15)  // entre 15 et 45
+    deltaLoser  = Math.round(10 - factor * 5)   // entre 5 et 15
+  }
+
+  // Garantir des minimums positifs
+  deltaWinner = Math.max(5, deltaWinner)
+  deltaLoser  = Math.max(1, deltaLoser)
+
+  let deltaA = winnerTeam === 'A' ? deltaWinner : deltaLoser
+  let deltaB = winnerTeam === 'B' ? deltaWinner : deltaLoser
+
+  if (beerBonus) {
+    if (winnerTeam === 'A') deltaA += BEER_BONUS
+    else deltaB += BEER_BONUS
+  }
+
+  return { deltaA, deltaB }
+}
 
 export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players, scoreA, scoreB, eventId, guestNamesA = [], guestNamesB = [] }) {
   const allIds = [...teamA, ...teamB]
@@ -134,14 +168,9 @@ export async function submitMatch({ teamA, teamB, winnerTeam, beerBonus, players
 
   if (realTeamA.length > 0 && realTeamB.length > 0) {
     const avg = ids => ids.reduce((s, id) => s + players.find(p => p.id === id).elo, 0) / ids.length
-    const expA = 1 / (1 + Math.pow(10, (avg(realTeamB) - avg(realTeamA)) / 400))
-    const sa = winnerTeam === 'A' ? 1 : 0
-    deltaA = Math.round(K * (sa - expA))
-    deltaB = Math.round(K * ((1 - sa) - (1 - expA)))
-    if (beerBonus) {
-      if (winnerTeam === 'A') deltaA += BEER_BONUS
-      else deltaB += BEER_BONUS
-    }
+    const result = computeEloDeltas(avg(realTeamA), avg(realTeamB), winnerTeam, beerBonus)
+    deltaA = result.deltaA
+    deltaB = result.deltaB
   }
 
   const { error: matchError } = await supabase.from('matches').insert({
