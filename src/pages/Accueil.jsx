@@ -95,38 +95,6 @@ export default function Accueil() {
             }} />
           </div>
 
-          {/* ── Titre ── */}
-          <div style={{
-            background: '#fff',
-            padding: '0 14px 8px',
-            flexShrink: 0,
-          }}>
-            {une.kicker && (
-              <div style={{
-                fontSize: 11, fontWeight: 700, color: '#2E6CC7',
-                letterSpacing: 1, textTransform: 'uppercase',
-                fontFamily: "'Barlow Condensed', sans-serif",
-                marginBottom: 4,
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2E6CC7', display: 'inline-block', flexShrink: 0 }} />
-                {une.kicker}
-              </div>
-            )}
-            <div style={{
-              fontFamily: "'Oswald', sans-serif",
-              fontSize: 26,
-              fontWeight: 700,
-              color: '#0A1628',
-              textTransform: 'uppercase',
-              lineHeight: 1.0,
-              letterSpacing: 0.5,
-              wordBreak: 'break-word',
-            }}>
-              {une.titre || 'Sanglich Corner'}
-            </div>
-          </div>
-
           {/* ── Séparateur ── */}
           <div style={{ height: 1, background: '#e8e8e8', flexShrink: 0 }} />
 
