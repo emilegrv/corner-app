@@ -28,7 +28,7 @@ a { color: inherit; text-decoration: none; }
 .page {
   max-width: 860px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 24px 20px 32px;
 }
 
 .page-title {
