@@ -43,7 +43,7 @@ export default function Accueil() {
       style={{
         height: '100vh',
         overflowY: hasUne ? 'scroll' : 'auto',
-        background: '#0A1628',
+        background: '#fff',
         scrollSnapType: 'none',
         position: 'relative',
       }}
@@ -71,13 +71,13 @@ export default function Accueil() {
           gap: 6px;
           padding: 13px 4px;
           cursor: pointer;
-          border: 1px solid rgba(255,255,255,0.11);
-          background: rgba(10,22,40,0.55);
+          border: 1px solid rgba(10,22,40,0.12);
+          background: rgba(255,255,255,0.7);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
           border-radius: 10px;
           transition: background 0.15s, border-color 0.15s, transform 0.15s;
-          color: rgba(255,255,255,0.7);
+          color: rgba(10,22,40,0.75);
           font-family: 'Barlow Condensed', sans-serif;
           font-size: 11px;
           font-weight: 700;
@@ -85,9 +85,9 @@ export default function Accueil() {
           text-transform: uppercase;
         }
         .accueil-nav-item:hover {
-          background: rgba(46,108,199,0.35);
+          background: rgba(46,108,199,0.15);
           border-color: rgba(46,108,199,0.5);
-          color: #fff;
+          color: #0A1628;
           transform: translateY(-2px);
         }
         .nav-icon { font-size: 22px; line-height: 1; }
@@ -110,21 +110,21 @@ export default function Accueil() {
                 objectFit: 'contain',
                 objectPosition: 'center center',
                 display: 'block',
-                background: '#0A1628',
+                background: '#fff',
               }}
             />
             {/* Fondu couleur autour de la photo — vignette douce */}
             <div style={{
               position: 'absolute', inset: 0,
               background: `
-                radial-gradient(ellipse at center, transparent 45%, rgba(10,22,40,0.55) 80%, rgba(10,22,40,0.85) 100%)
+                radial-gradient(ellipse at center, transparent 45%, rgba(255,255,255,0.55) 80%, rgba(255,255,255,0.85) 100%)
               `,
               pointerEvents: 'none',
             }} />
             {/* Fondu bas léger pour le titre */}
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0, height: '32%',
-              background: 'linear-gradient(to top, rgba(10,22,40,0.65) 0%, transparent 100%)',
+              background: 'linear-gradient(to top, rgba(255,255,255,0.75) 0%, transparent 100%)',
               pointerEvents: 'none',
             }} />
           </div>
@@ -160,11 +160,11 @@ export default function Accueil() {
                   fontFamily: "'Oswald', sans-serif",
                   fontSize: 62,
                   fontWeight: 700,
-                  color: '#fff',
+                  color: '#0A1628',
                   textTransform: 'uppercase',
                   lineHeight: 0.95,
                   textAlign: 'center',
-                  textShadow: '0 2px 24px rgba(0,0,0,0.7)',
+                  textShadow: 'none',
                   wordBreak: 'break-word',
                   marginBottom: 28,
                   opacity: 1 - navProgress,
@@ -182,12 +182,12 @@ export default function Accueil() {
               }}>
                 <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
                   <span style={{
-                    fontSize: 9, color: 'rgba(255,255,255,0.5)',
+                    fontSize: 9, color: 'rgba(10,22,40,0.4)',
                     letterSpacing: 2, textTransform: 'uppercase',
                     fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600,
                   }}>Swipe</span>
                   <span style={{
-                    fontSize: 18, color: 'rgba(255,255,255,0.5)',
+                    fontSize: 18, color: 'rgba(10,22,40,0.4)',
                     animation: 'bounce 1.8s ease-in-out infinite',
                     display: 'inline-block',
                   }}>↓</span>
@@ -210,7 +210,7 @@ export default function Accueil() {
               <div style={{
                 position: 'absolute', bottom: 0, left: 0, right: 0,
                 height: 220,
-                background: 'linear-gradient(to top, rgba(10,22,40,0.92) 0%, transparent 100%)',
+                background: 'linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%)',
                 zIndex: -1,
                 borderRadius: 0,
               }} />
