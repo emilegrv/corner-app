@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react'
-import { Routes, Route, NavLink } from 'react-router-dom'
+import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom'
+import Accueil from './pages/Accueil.jsx'
 import Classement from './pages/Classement.jsx'
 import Match from './pages/Match.jsx'
 import Joueurs from './pages/Joueurs.jsx'
@@ -19,13 +20,49 @@ const PingPongLogo = () => (
 )
 
 const navItems = [
-  { to: '/', label: 'Classement' },
+  { to: '/classement', label: 'Classement' },
   { to: '/match', label: 'Match' },
-  { to: '/evenements', label: 'Évènements' },
+  { to: '/evenements', label: "Evènements" },
   { to: '/joueurs', label: 'Joueurs' },
   { to: '/historique', label: 'Historique' },
-  { to: '/palmares', label: 'Palmarès' },
+  { to: '/palmares', label: "Palmarès" },
 ]
+
+function AppHeader() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isAccueil = location.pathname === '/'
+
+  if (isAccueil) return null
+
+  return (
+    <header style={{ background: '#0A1628', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap' }}>
+      <div
+        onClick={() => navigate('/')}
+        style={{ position: 'relative', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+        title="Accueil"
+      >
+        <PingPongLogo />
+        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 28, color: '#fff', letterSpacing: 2, textTransform: 'uppercase', position: 'relative', zIndex: 1, lineHeight: 1 }}>Sanglich</span>
+        <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, textTransform: 'uppercase', position: 'relative', zIndex: 1 }}>Corner · Classement officiel</span>
+      </div>
+      <nav style={{ display: 'flex', gap: 3, marginLeft: 'auto', flexWrap: 'wrap' }}>
+        {navItems.map(({ to, label }) => (
+          <NavLink key={to} to={to} end={to === '/classement'} style={({ isActive }) => ({
+            padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+            fontFamily: "'Barlow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.5px',
+            border: isActive ? '1px solid #2E6CC7' : '1px solid transparent',
+            background: isActive ? '#2E6CC7' : 'none',
+            color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
+            cursor: 'pointer', transition: 'all 0.15s',
+          })}>
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+    </header>
+  )
+}
 
 export default function App() {
   const [toast, setToast] = useState({ msg: '', show: false, error: false })
@@ -36,29 +73,10 @@ export default function App() {
 
   return (
     <ToastContext.Provider value={showToast}>
-      <header style={{ background: '#0A1628', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '16px', position: 'sticky', top: 0, zIndex: 100, flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          <PingPongLogo />
-          <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 28, color: '#fff', letterSpacing: 2, textTransform: 'uppercase', position: 'relative', zIndex: 1, lineHeight: 1 }}>Sanglich</span>
-          <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', letterSpacing: 3, textTransform: 'uppercase', position: 'relative', zIndex: 1 }}>Corner · Classement officiel</span>
-        </div>
-        <nav style={{ display: 'flex', gap: 3, marginLeft: 'auto', flexWrap: 'wrap' }}>
-          {navItems.map(({ to, label }) => (
-            <NavLink key={to} to={to} end={to === '/'} style={({ isActive }) => ({
-              padding: '7px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700,
-              fontFamily: "'Barlow', sans-serif", textTransform: 'uppercase', letterSpacing: '0.5px',
-              border: isActive ? '1px solid #2E6CC7' : '1px solid transparent',
-              background: isActive ? '#2E6CC7' : 'none',
-              color: isActive ? '#fff' : 'rgba(255,255,255,0.5)',
-              cursor: 'pointer', transition: 'all 0.15s',
-            })}>
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-      </header>
+      <AppHeader />
       <Routes>
-        <Route path="/" element={<Classement />} />
+        <Route path="/" element={<Accueil />} />
+        <Route path="/classement" element={<Classement />} />
         <Route path="/match" element={<Match />} />
         <Route path="/evenements" element={<Evenements />} />
         <Route path="/joueurs" element={<Joueurs />} />
