@@ -15,11 +15,9 @@ export default function Accueil() {
   const navigate = useNavigate()
   const [une, setUne] = useState(null)
   const [imgColor, setImgColor] = useState('#f0f0f0')
-  const imgRef = useRef()
 
   useEffect(() => { getUne().then(setUne) }, [])
 
-  // Extraire la couleur dominante du bord de l'image pour le fond
   function handleImageLoad(e) {
     try {
       const img = e.target
@@ -45,13 +43,12 @@ export default function Accueil() {
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@700&display=swap');
-        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
         .nav-card {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 6px;
+          gap: 5px;
           cursor: pointer;
           background: none;
           border: none;
@@ -60,17 +57,17 @@ export default function Accueil() {
         }
         .nav-card:active { transform: scale(0.93); }
         .nav-card-icon {
-          width: 52px;
-          height: 52px;
+          width: 48px;
+          height: 48px;
           border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: 22px;
         }
         .nav-card-label {
           font-family: 'Barlow Condensed', sans-serif;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
           letter-spacing: 0.5px;
           text-transform: uppercase;
@@ -82,39 +79,9 @@ export default function Accueil() {
 
       {hasUne ? (
         <>
-          {/* ── Logo Sanglich en haut ── */}
-          <div style={{
-            background: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingTop: 14,
-            paddingBottom: 10,
-            borderBottom: '1px solid rgba(0,0,0,0.07)',
-            flexShrink: 0,
-          }}>
-            <div style={{ position: 'relative', textAlign: 'center' }}>
-              <div style={{
-                position: 'absolute', top: 0, left: 0, right: 0,
-                height: 3, background: '#E8000D', borderRadius: '2px 2px 0 0',
-              }} />
-              <span style={{
-                fontFamily: "'Barlow Condensed', sans-serif",
-                fontWeight: 900, fontSize: 30, color: '#0A1628',
-                letterSpacing: 3, textTransform: 'uppercase',
-                display: 'block', paddingTop: 6,
-              }}>Sanglich</span>
-              <span style={{
-                fontSize: 8, fontWeight: 700, color: 'rgba(10,22,40,0.35)',
-                letterSpacing: 3, textTransform: 'uppercase', display: 'block',
-              }}>Corner · Classement officiel</span>
-            </div>
-          </div>
-
-          {/* ── Photo — prend tout l'espace restant ── */}
+          {/* ── Photo — du haut jusqu'au titre ── */}
           <div style={{ flex: 1, overflow: 'hidden', background: imgColor, minHeight: 0 }}>
             <img
-              ref={imgRef}
               src={une.image_url}
               alt="Une"
               crossOrigin="anonymous"
@@ -129,7 +96,7 @@ export default function Accueil() {
             />
           </div>
 
-          {/* ── Titre sur fond blanc ── */}
+          {/* ── Titre ── */}
           <div style={{
             background: '#fff',
             padding: '10px 14px 8px',
@@ -167,7 +134,7 @@ export default function Accueil() {
           {/* ── Navigation catégories ── */}
           <div style={{
             background: '#f7f7f7',
-            padding: '12px 16px 16px',
+            padding: '10px 16px 14px',
             flexShrink: 0,
           }}>
             <div style={{
@@ -189,28 +156,17 @@ export default function Accueil() {
       ) : (
         /* ── Pas de Une ── */
         <>
-          <div style={{
-            background: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            paddingTop: 14, paddingBottom: 10,
-            borderBottom: '1px solid rgba(0,0,0,0.07)', flexShrink: 0,
-          }}>
-            <div style={{ position: 'relative', textAlign: 'center' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: '#E8000D' }} />
-              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 30, color: '#0A1628', letterSpacing: 3, textTransform: 'uppercase', display: 'block', paddingTop: 6 }}>Sanglich</span>
-              <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(10,22,40,0.35)', letterSpacing: 3, textTransform: 'uppercase', display: 'block' }}>Corner · Classement officiel</span>
-            </div>
-          </div>
-
           <div style={{ flex: 1, background: '#f7f7f7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ textAlign: 'center', color: 'rgba(10,22,40,0.25)', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: 'uppercase' }}>
-              Aucune Une configurée<br />
-              <span style={{ fontSize: 11, fontWeight: 400, marginTop: 4, display: 'block' }}>Allez dans Palmarès pour en créer une</span>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 42, color: '#0A1628', letterSpacing: 3, textTransform: 'uppercase' }}>Sanglich</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(10,22,40,0.3)', letterSpacing: 3, textTransform: 'uppercase', marginTop: 2, marginBottom: 24 }}>Corner · Classement officiel</div>
+              <div style={{ fontSize: 12, color: 'rgba(10,22,40,0.3)', fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: 1 }}>
+                Allez dans Palmarès pour configurer la Une
+              </div>
             </div>
           </div>
-
           <div style={{ height: 1, background: '#e8e8e8', flexShrink: 0 }} />
-          <div style={{ background: '#f7f7f7', padding: '12px 16px 16px', flexShrink: 0 }}>
+          <div style={{ background: '#f7f7f7', padding: '10px 16px 14px', flexShrink: 0 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6 }}>
               {navItems.map(({ to, label, emoji, color }) => (
                 <button key={to} className="nav-card" onClick={() => navigate(to)}>
