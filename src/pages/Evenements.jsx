@@ -31,7 +31,15 @@ function shuffle(arr) {
 }
 
 function makeTeams(ids) {
-  const shuffled = shuffle(ids)
+  const remainder = ids.length % 3
+  let pool = [...ids]
+  // Si pas multiple de 3, on double 1 ou 2 joueurs pour compléter les équipes
+  if (remainder !== 0) {
+    const needed = remainder === 1 ? 2 : 1  // 1 extra → ajouter 2 doublons, 2 extra → ajouter 1 doublon
+    const extras = shuffle([...ids]).slice(0, needed)
+    pool = [...pool, ...extras]
+  }
+  const shuffled = shuffle(pool)
   const teams = []
   for (let i = 0; i < shuffled.length; i += 3) teams.push(shuffled.slice(i, i + 3))
   return teams
@@ -544,38 +552,47 @@ function EventDetail({ event, players, onBack, onRefresh }) {
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 14, color: '#0A1628', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
           Equipes aleatoires
         </div>
-        {participants.length < 6 || participants.length % 3 !== 0 ? (
+        {participants.length < 6 ? (
           <div style={{ fontSize: 13, color: '#7A94B8', textAlign: 'center', padding: '16px 0' }}>
-            {participants.length < 6
-              ? `${6 - participants.length} participant${6 - participants.length > 1 ? 's' : ''} manquant${6 - participants.length > 1 ? 's' : ''} pour generer des equipes`
-              : `${participants.length} participants — il faut un multiple de 3 (${participants.length - (participants.length % 3)} ou ${participants.length + (3 - participants.length % 3)})`
-            }
+            {6 - participants.length} participant{6 - participants.length > 1 ? 's' : ''} manquant{6 - participants.length > 1 ? 's' : ''} pour generer des equipes
           </div>
         ) : (
           <>
+            {participants.length % 3 !== 0 && (
+              <div style={{ fontSize: 12, color: '#C87941', background: '#FDF3E8', border: '1px solid #F5C842', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
+                ⚠️ {participants.length} participants — {3 - (participants.length % 3)} joueur{3 - (participants.length % 3) > 1 ? 's' : ''} seront en double pour completer les equipes
+              </div>
+            )}
             <button className="btn btn-primary" onClick={() => setRandomTeams(makeTeams(participants))}>
               Generer les equipes
             </button>
             {randomTeams && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-                {randomTeams.map((team, i) => (
+                {randomTeams.map((team, i) => {
+                  // Detecter les doublons dans cette equipe (meme id apparait plusieurs fois dans toutes les equipes)
+                  const allIds = randomTeams.flat()
+                  const countById = allIds.reduce((acc, id) => { acc[id] = (acc[id] || 0) + 1; return acc }, {})
+                  return (
                   <div key={i} style={{ background: '#F4F8FE', borderRadius: 10, padding: '12px 14px', border: '1px solid #D8E4F5' }}>
                     <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-                      Equipe {i + 1}{team.length < 3 ? ` (${team.length} joueurs)` : ''}
+                      Equipe {i + 1}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {team.map(id => {
+                      {team.map((id, j) => {
                         const p = players.find(pl => pl.id === id)
+                        const isDouble = countById[id] > 1
                         return (
-                          <div key={id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#fff', border: '1px solid #D8E4F5', borderRadius: 8, padding: '5px 10px' }}>
+                          <div key={id + '-' + j} style={{ display: 'flex', alignItems: 'center', gap: 6, background: isDouble ? '#FFF8E6' : '#fff', border: `1px solid ${isDouble ? '#F5C842' : '#D8E4F5'}`, borderRadius: 8, padding: '5px 10px' }}>
                             <Avatar player={p} size={24} />
                             <span style={{ fontSize: 13, fontWeight: 700, color: '#0A1628' }}>{p?.first_name || p?.name || '?'}</span>
+                            {isDouble && <span style={{ fontSize: 10, fontWeight: 700, background: '#F5C842', color: '#0A1628', borderRadius: 4, padding: '1px 5px' }}>x2</span>}
                           </div>
                         )
                       })}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </>
