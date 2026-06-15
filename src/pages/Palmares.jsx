@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { getSeasons, getPlayers, archiveSeason } from '../lib/supabase'
+import React, { useEffect, useState, useRef } from 'react'
+import { getSeasons, getPlayers, archiveSeason, getUne, saveUne, uploadUnePhoto } from '../lib/supabase'
 import { useToast } from '../App'
 
 function formatName(p) {
@@ -17,7 +17,7 @@ function winRate(p) {
 }
 
 const SEASON_RESET_DAY = 21
-const SEASON_RESET_MONTH = 10 // octobre = 10
+const SEASON_RESET_MONTH = 10
 
 function getCurrentSeasonYear() {
   const now = new Date()
@@ -37,12 +37,25 @@ export default function Palmares() {
   const [archiving, setArchiving] = useState(false)
   const [expanded, setExpanded] = useState(null)
 
-  const load = () => Promise.all([getSeasons(), getPlayers()]).then(([s, p]) => {
+  // Une
+  const [une, setUne] = useState(null)
+  const [uneTitre, setUneTitre] = useState('')
+  const [uneKicker, setUneKicker] = useState('')
+  const [unePreview, setUnePreview] = useState(null)
+  const [uneFile, setUneFile] = useState(null)
+  const [savingUne, setSavingUne] = useState(false)
+  const fileRef = useRef()
+
+  const load = () => Promise.all([getSeasons(), getPlayers(), getUne()]).then(([s, p, u]) => {
     setSeasons(s)
     setPlayers(p)
+    setUne(u)
+    setUneTitre(u?.titre || '')
+    setUneKicker(u?.kicker || '')
+    setUnePreview(u?.image_url || null)
   }).catch(e => {
-    setSeasons([]) // stoppe le spinner même en cas d'erreur
-    toast('Erreur chargement palmarès : ' + e.message, true)
+    setSeasons([])
+    toast('Erreur chargement : ' + e.message, true)
   })
 
   useEffect(() => { load() }, [])
@@ -50,12 +63,9 @@ export default function Palmares() {
   async function handleArchive() {
     const secretCode = window.prompt('Code secret :')
     if (secretCode === null) return
-    if (secretCode !== 'berebagarre') {
-      toast('Code incorrect', true)
-      return
-    }
+    if (secretCode !== 'berebagarre') { toast('Code incorrect', true); return }
     const confirmText = window.prompt(
-      `⚠️ Cette action est irréversible !\n\nElle va archiver la saison ${getCurrentSeasonYear()} et remettre TOUS les ELOs à 1000.\n\nTape "ARCHIVER" pour confirmer :`
+      `\u26a0\ufe0f Cette action est irréversible !\n\nElle va archiver la saison ${getCurrentSeasonYear()} et remettre TOUS les ELOs à 1000.\n\nTape "ARCHIVER" pour confirmer :`
     )
     if (confirmText !== 'ARCHIVER') {
       if (confirmText !== null) toast('Archivage annulé — texte incorrect', true)
@@ -63,25 +73,176 @@ export default function Palmares() {
     }
     setArchiving(true)
     try {
-      const year = getCurrentSeasonYear()
-      await archiveSeason(year, players)
-      toast(`Saison ${year} archivée !`)
+      await archiveSeason(getCurrentSeasonYear(), players)
+      toast(`Saison ${getCurrentSeasonYear()} archivée !`)
       load()
     } catch (e) {
       toast('Erreur : ' + e.message, true)
     } finally { setArchiving(false) }
   }
 
+  function handleFileChange(e) {
+    const f = e.target.files[0]
+    if (!f) return
+    setUneFile(f)
+    setUnePreview(URL.createObjectURL(f))
+  }
+
+  async function handleSaveUne() {
+    setSavingUne(true)
+    try {
+      let imageUrl = une?.image_url || null
+      if (uneFile) {
+        imageUrl = await uploadUnePhoto(uneFile)
+      }
+      await saveUne({ image_url: imageUrl, titre: uneTitre || null, kicker: uneKicker || null })
+      toast('Une enregistrée !')
+      setUneFile(null)
+      load()
+    } catch (e) {
+      toast('Erreur : ' + e.message, true)
+    } finally { setSavingUne(false) }
+  }
+
+  async function handleDeleteUne() {
+    if (!window.confirm('Supprimer la Une ?')) return
+    setSavingUne(true)
+    try {
+      await saveUne({ image_url: null, titre: null, kicker: null })
+      setUneTitre('')
+      setUneKicker('')
+      setUnePreview(null)
+      setUneFile(null)
+      toast('Une supprimée')
+      load()
+    } catch (e) {
+      toast('Erreur : ' + e.message, true)
+    } finally { setSavingUne(false) }
+  }
+
   if (seasons === null) return <div className="spinner" />
 
   const currentYear = getCurrentSeasonYear()
-  const isAdmin = true // pour l'instant tout le monde peut archiver
+  const hasUne = une && une.image_url
 
   return (
     <main className="page">
       <div className="page-title">Palmarès</div>
 
-      {/* Current season info */}
+      {/* ── Section Une ── */}
+      <div style={{ background: '#0A1628', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 14 }}>
+          Une de la page d'accueil
+        </div>
+
+        {/* Preview */}
+        {unePreview && (
+          <div style={{ position: 'relative', marginBottom: 16, borderRadius: 10, overflow: 'hidden', maxHeight: 240 }}>
+            <img
+              src={unePreview}
+              alt="Preview Une"
+              style={{ width: '100%', height: 200, objectFit: 'cover', objectPosition: 'center top', display: 'block' }}
+            />
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              background: 'linear-gradient(transparent, rgba(10,22,40,0.95))',
+              padding: '16px 14px 12px',
+            }}>
+              {uneTitre && (
+                <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 900, fontSize: 20, color: '#fff', textTransform: 'uppercase', lineHeight: 1.1 }}>
+                  {uneTitre}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Upload photo */}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+            Photo (portrait recommandé)
+          </div>
+          <div
+            onClick={() => fileRef.current?.click()}
+            style={{
+              border: '1.5px dashed rgba(46,108,199,0.4)',
+              borderRadius: 10,
+              padding: '14px 16px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'rgba(46,108,199,0.04)',
+              transition: 'border-color 0.15s, background 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(46,108,199,0.7)'; e.currentTarget.style.background = 'rgba(46,108,199,0.09)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(46,108,199,0.4)'; e.currentTarget.style.background = 'rgba(46,108,199,0.04)' }}
+          >
+            <span style={{ fontSize: 22 }}>🖼️</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
+                {uneFile ? uneFile.name : 'Choisir une photo'}
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
+                JPG, PNG — format portrait conseillé
+              </div>
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+        </div>
+
+        {/* Titre */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+            Titre
+          </div>
+          <input
+            className="input"
+            value={uneTitre}
+            onChange={e => setUneTitre(e.target.value)}
+            placeholder="ex: Jérémy reprend la tête !"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.1)', color: '#fff' }}
+          />
+        </div>
+
+        {/* Kicker */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>
+            Sous-titre (optionnel)
+          </div>
+          <input
+            className="input"
+            value={uneKicker}
+            onChange={e => setUneKicker(e.target.value)}
+            placeholder="ex: Classement · Saison 2026"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.1)', color: '#fff' }}
+          />
+        </div>
+
+        {/* Boutons */}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleSaveUne}
+            disabled={savingUne || (!uneFile && !uneTitre && !une?.image_url)}
+            style={{ flex: 1 }}
+          >
+            {savingUne ? 'Enregistrement...' : 'Enregistrer la Une'}
+          </button>
+          {hasUne && (
+            <button
+              className="btn btn-danger"
+              onClick={handleDeleteUne}
+              disabled={savingUne}
+              style={{ paddingLeft: 14, paddingRight: 14 }}
+            >
+              Supprimer
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Saison en cours ── */}
       <div style={{ background: '#0A1628', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
         <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: 13, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>
           Saison en cours
@@ -96,7 +257,7 @@ export default function Palmares() {
         {isResetDay() && (
           <div style={{ background: 'rgba(245,200,66,0.1)', border: '1px solid rgba(245,200,66,0.3)', borderRadius: 10, padding: '12px 16px', marginBottom: 14 }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#F5C842' }}>
-              🎉 C'est le jour anniversaire ! La saison peut être archivée.
+              Jour anniversaire ! La saison peut être archivée.
             </div>
           </div>
         )}
@@ -104,7 +265,7 @@ export default function Palmares() {
         {!isResetDay() && (
           <div style={{ background: 'rgba(192,57,43,0.08)', border: '1px solid rgba(192,57,43,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#C0392B' }}>
-              ⚠️ La saison se termine le 21 octobre. L'archivage avant cette date remet tous les ELOs à 1000 définitivement.
+              La saison se termine le 21 octobre. L'archivage avant cette date remet tous les ELOs à 1000 définitivement.
             </div>
           </div>
         )}
@@ -119,7 +280,7 @@ export default function Palmares() {
         </button>
       </div>
 
-      {/* Seasons list */}
+      {/* ── Saisons archivées ── */}
       {seasons.length === 0 ? (
         <div className="empty">Aucune saison archivée pour l'instant.</div>
       ) : (
