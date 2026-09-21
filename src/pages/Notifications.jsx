@@ -22,11 +22,13 @@ import {
 /* Change ces 5 valeurs pour coller au thème du reste de l'app. */
 const C = {
   bg: "#ffffff",
-  line: "#e4e4e7",
-  text: "#111113",
-  muted: "#71717a",
-  accent: "#d81e28"
+  line: "#e8edf5",
+  text: "#0A1628",
+  muted: "rgba(10,22,40,0.55)",
+  accent: "#2E6CC7"
 };
+
+const FONT_TITRE = "'Barlow Condensed', sans-serif";
 
 const ADMIN_CODE = "berebagarre";
 
@@ -51,9 +53,9 @@ export default function Notifications() {
     (async () => {
       const { data } = await supabase
         .from("players")
-        .select("id, name")
+        .select("id, name, first_name, nickname, is_guest")
         .order("name", { ascending: true });
-      if (alive && data) setPlayers(data);
+      if (alive && data) setPlayers(data.filter((p) => !p.is_guest));
 
       const sub = await getCurrentSubscription();
       if (alive) setSubscribed(Boolean(sub) && permissionState() === "granted");
@@ -161,7 +163,8 @@ export default function Notifications() {
                     ...(subscribed ? S.chipLocked : null)
                   }}
                 >
-                  {p.name}
+                  {p.first_name || p.name}
+                  {p.nickname ? " « " + p.nickname + " »" : ""}
                 </button>
               ))}
             </div>
@@ -259,7 +262,7 @@ const S = {
     fontFamily: "inherit"
   },
   title: {
-    fontFamily: "Oswald, sans-serif",
+    fontFamily: FONT_TITRE,
     fontSize: 34,
     fontWeight: 600,
     margin: "0 0 8px"
@@ -273,7 +276,7 @@ const S = {
     background: C.bg
   },
   h2: {
-    fontFamily: "Oswald, sans-serif",
+    fontFamily: FONT_TITRE,
     fontSize: 18,
     fontWeight: 500,
     margin: "0 0 12px"
@@ -299,7 +302,7 @@ const S = {
     border: "none",
     background: C.accent,
     color: "#fff",
-    fontFamily: "Oswald, sans-serif",
+    fontFamily: FONT_TITRE,
     fontSize: 16,
     letterSpacing: 0.3,
     cursor: "pointer"
