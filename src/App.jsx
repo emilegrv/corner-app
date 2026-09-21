@@ -7,6 +7,7 @@ import Joueurs from './pages/Joueurs.jsx'
 import Historique from './pages/Historique.jsx'
 import Palmares from './pages/Palmares.jsx'
 import Evenements from './pages/Evenements.jsx'
+import Notifications from './pages/Notifications.jsx'
 
 export const ToastContext = createContext(null)
 export function useToast() { return useContext(ToastContext) }
@@ -27,6 +28,7 @@ const NAV_COLORS = {
   '/joueurs':    '#7C3AED',
   '/historique': '#0A7EA4',
   '/palmares':   '#C0392B',
+  '/notifications': '#E0A800',
 }
 
 function AppShell({ children }) {
@@ -74,6 +76,18 @@ function AppShell({ children }) {
             letterSpacing: 3, textTransform: 'uppercase',
           }}>Corner · Classement officiel</div>
         </div>
+
+        {/* Cloche notifications */}
+        <button
+          onClick={() => navigate('/notifications')}
+          aria-label="Notifications"
+          style={{
+            position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+            width: 38, height: 38, borderRadius: 10, border: 'none', cursor: 'pointer',
+            background: location.pathname === '/notifications' ? '#E0A800' : 'rgba(10,22,40,0.06)',
+            fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >🔔</button>
       </div>
 
       {/* ── Contenu scrollable ── */}
@@ -152,6 +166,7 @@ export default function App() {
           <Route path="/joueurs"    element={<Joueurs />} />
           <Route path="/historique" element={<Historique />} />
           <Route path="/palmares"   element={<Palmares />} />
+          <Route path="/notifications" element={<Notifications />} />
         </Routes>
       </AppShell>
       <div className={`toast${toast.error ? ' error' : ''}${toast.show ? ' show' : ''}`}>{toast.msg}</div>
