@@ -30,8 +30,6 @@ const C = {
 
 const FONT_TITRE = "'Barlow Condensed', sans-serif";
 
-const ADMIN_CODE = "berebagarre";
-
 export default function Notifications() {
   const [players, setPlayers] = useState([]);
   const [playerId, setPlayerId] = useState(getSavedPlayerId());
@@ -39,8 +37,6 @@ export default function Notifications() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { kind: "ok" | "ko", text }
 
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [code, setCode] = useState("");
   const [annonceTitre, setAnnonceTitre] = useState("");
   const [annonceTexte, setAnnonceTexte] = useState("");
 
@@ -203,49 +199,22 @@ export default function Notifications() {
       <section style={{ ...S.card, marginTop: 32 }}>
         <h2 style={S.h2}>Annonce à tout le Sanglich</h2>
 
-        {!adminOpen ? (
-          <div style={S.row}>
-            <input
-              type="password"
-              value={code}
-              placeholder="Code"
-              onChange={(e) => setCode(e.target.value)}
-              style={S.input}
-            />
-            <button
-              onClick={() => {
-                if (code === ADMIN_CODE) {
-                  setAdminOpen(true);
-                  setNotice(null);
-                } else {
-                  setNotice({ kind: "ko", text: "Mauvais code." });
-                }
-              }}
-              style={S.small}
-            >
-              Ouvrir
-            </button>
-          </div>
-        ) : (
-          <>
-            <input
-              value={annonceTitre}
-              placeholder="Titre, par exemple : Corner ce soir"
-              onChange={(e) => setAnnonceTitre(e.target.value)}
-              style={{ ...S.input, width: "100%", marginBottom: 8 }}
-            />
-            <textarea
-              value={annonceTexte}
-              placeholder="Message, par exemple : 21h chez Jérémy, ramenez des bières"
-              onChange={(e) => setAnnonceTexte(e.target.value)}
-              rows={3}
-              style={{ ...S.input, width: "100%", marginBottom: 12, resize: "vertical" }}
-            />
-            <button onClick={handleBroadcast} disabled={busy} style={S.cta}>
-              {busy ? "Envoi..." : "Envoyer à tout le monde"}
-            </button>
-          </>
-        )}
+        <input
+          value={annonceTitre}
+          placeholder="Titre, par exemple : Corner ce soir"
+          onChange={(e) => setAnnonceTitre(e.target.value)}
+          style={{ ...S.input, width: "100%", marginBottom: 8 }}
+        />
+        <textarea
+          value={annonceTexte}
+          placeholder="Message, par exemple : 21h chez Jeremy, ramenez des bieres"
+          onChange={(e) => setAnnonceTexte(e.target.value)}
+          rows={3}
+          style={{ ...S.input, width: "100%", marginBottom: 12, resize: "vertical" }}
+        />
+        <button onClick={handleBroadcast} disabled={busy} style={S.cta}>
+          {busy ? "Envoi..." : "Envoyer a tout le monde"}
+        </button>
       </section>
     </div>
   );
